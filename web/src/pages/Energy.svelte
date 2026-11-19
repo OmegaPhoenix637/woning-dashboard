@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Sun, Zap, UtilityPole, ArrowUpFromLine, Leaf, PiggyBank, Euro, Flame, Table2, ChartColumn, Gauge } from 'lucide';
+  import { Sun, Zap, UtilityPole, ArrowUpFromLine, Leaf, PiggyBank, Euro, Flame, Table2, ChartColumn, Gauge, Activity } from 'lucide';
   import Icon from '../lib/components/Icon.svelte';
   import StatTile from '../lib/components/StatTile.svelte';
   import Chart from '../lib/components/Chart.svelte';
@@ -49,6 +49,26 @@
   });
 
   const totals = $derived(range.dates.map((d) => app.totalsOn(d)).filter((t) => t != null));
+
+  // Vermogen per fase (P1): + = afname, - = teruglevering
+  const PHASES = [
+    { key: 'grid_l1', label: 'Fase 1 (L1)', color: '--c-l1' },
+    { key: 'grid_l2', label: 'Fase 2 (L2)', color: '--c-l2' },
+    { key: 'grid_l3', label: 'Fase 3 (L3)', color: '--c-l3' },
+  ];
+  const phaseChart = $derived.by(() => {
+    if (!day) return null;
+    const has = PHASES.some((p) => (day!.ch[p.key] ?? []).some((v) => v != null));
+    if (!has) return null;
+    return {
+      x: Array.from({ length: day.n }, (_, i) => day!.start + i * day!.step),
+      series: PHASES.map((p) => ({ label: p.label, values: day!.ch[p.key] ?? [], color: p.color })),
+      peaks: PHASES.map((p) => {
+        const vals = (day!.ch[p.key] ?? []).filter((v): v is number => v != null);
+        return { ...p, max: vals.length ? Math.max(...vals) : null, min: vals.length ? Math.min(...vals) : null };
+      }),
+    };
+  });
   const agg = $derived(aggregate(totals));
   const money = $derived(app.moneyFor(range.dates));
   const cons = $derived(consumptionKwh(agg));
@@ -194,6 +214,35 @@
         <div class="empty">Geen gegevens voor deze dag.</div>
       {/if}
     </section>
+
+    <section class="card rise" style="--i:10">
+      <div class="card-head">
+        <h2 class="card-title"><span class="ico" style="--accent: var(--g-grid)"><Icon icon={Activity} size={18} /></span>Vermogen per fase</h2>
+        <Explain>
+          <p>Het huis is aangesloten op <b>drie fasen</b> (L1, L2, L3). Hier zie je per fase hoeveel stroom er van het net kwam (boven de nullijn) of werd teruggeleverd (eronder).</p>
+          <p>Handig om te zien of één fase zwaar belast wordt. Bij een aansluiting van 3×25 A is dat ongeveer <b>5,7 kW per fase</b>.</p>
+        </Explain>
+      </div>
+      {#if phaseChart}
+        <div class="phase-peaks">
+          {#each phaseChart.peaks as p (p.key)}
+            <div><span><i style="background: var({p.color})"></i>{p.label}</span><b>piek {p.max != null && p.max > 0 ? power(p.max) : '—'}</b>{#if p.min != null && p.min < -25}<small>terug {power(p.min)}</small>{/if}</div>
+          {/each}
+        </div>
+        <Chart
+          x={phaseChart.x}
+          series={phaseChart.series}
+          height={280}
+          xRange={[dayStart(range.start), dayStart(range.start) + 86400]}
+          yFormat={axis}
+          valueFormat={(v) => power(v, false)}
+          title="Vermogen per fase"
+          ariaLabel="Vermogen per fase door de dag"
+        />
+      {:else}
+        <div class="empty small">Voor deze dag zijn er nog geen gegevens per fase.</div>
+      {/if}
+    </section>
   {:else}
     <section class="card rise" style="--i:9">
       <div class="card-head">
@@ -329,6 +378,38 @@
     height: 260px;
     display: grid;
     place-items: center;
+    color: var(--text-3);
+  }
+  .empty.small {
+    height: 120px;
+  }
+  .phase-peaks {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .phase-peaks div {
+    display: grid;
+    gap: 1px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: var(--surface-2);
+    font-size: 13px;
+    color: var(--text-2);
+  }
+  .phase-peaks i {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    margin-right: 6px;
+  }
+  .phase-peaks b {
+    color: var(--text);
+    font-size: 15px;
+  }
+  .phase-peaks small {
     color: var(--text-3);
   }
   .note {

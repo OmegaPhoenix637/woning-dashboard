@@ -65,5 +65,8 @@ enum ChIdx {
   CH_EUROM_BAD_ON,
   CH_EUROM_SLAAP_T,
   CH_EUROM_BAD_T,
+  CH_L1,  // vermogen per fase (W, + afname / - teruglevering)
+  CH_L2,
+  CH_L3,
   N_CH
 };

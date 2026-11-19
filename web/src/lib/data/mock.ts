@@ -133,7 +133,7 @@ function simulateDay(date: string, carry: CarryState, limitSteps?: number): SimR
 
   const ch: Record<string, (number | null)[]> = {};
   const mk = (k: string) => (ch[k] = new Array(n).fill(null));
-  ['grid_w', 'grid_max', 'solar_w', 'bat1_w', 'bat2_w', 'bat1_soc', 'bat2_soc', 't_out', 'cloud'].forEach(mk);
+  ['grid_w', 'grid_max', 'solar_w', 'bat1_w', 'bat2_w', 'bat1_soc', 'bat2_soc', 't_out', 'cloud', 'grid_l1', 'grid_l2', 'grid_l3'].forEach(mk);
   for (const rm of ROOMS) ['_t', '_set', '_mode'].forEach((s) => mk('ac_' + rm.id + s));
   ['pellet_t', 'pellet_on', 'eurom_slaap_on', 'eurom_bad_on', 'eurom_slaap_t', 'eurom_bad_t'].forEach(mk);
 
@@ -267,6 +267,12 @@ function simulateDay(date: string, carry: CarryState, limitSteps?: number): SimR
     const gridMax = grid > 0 ? grid + r() * 450 + (r() < 0.2 ? 1200 : 0) : grid;
 
     ch.grid_w[i] = Math.round(grid);
+    // Per fase: SB3.0 op L1, SB4.0 op L2 (eenfase-omvormers), batterijen op L3; huisverbruik verdeeld.
+    const l1 = load * 0.42 - (pv * 3) / 7;
+    const l2 = load * 0.38 - (pv * 4) / 7;
+    ch.grid_l1[i] = Math.round(l1);
+    ch.grid_l2[i] = Math.round(l2);
+    ch.grid_l3[i] = Math.round(grid - l1 - l2);
     ch.grid_max[i] = Math.round(gridMax);
     ch.solar_w[i] = Math.round(pv);
     ch.bat1_w[i] = Math.round(bw[0]);

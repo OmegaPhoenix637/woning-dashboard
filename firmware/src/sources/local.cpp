@@ -27,6 +27,9 @@ void pollP1() {
   live.gasM3 = doc["total_gas_m3"] | NAN;
   samplerAdd(CH_GRID_W, live.gridW);
   samplerAdd(CH_GRID_MAX, live.gridW);
+  samplerAdd(CH_L1, live.l1);
+  samplerAdd(CH_L2, live.l2);
+  samplerAdd(CH_L3, live.l3);
   markOk(S_P1);
 }
 

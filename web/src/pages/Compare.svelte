@@ -23,7 +23,7 @@
   import type { Period } from '../lib/components/PeriodPicker.svelte';
 
   type Mode = 'dag' | 'week' | 'maand' | 'jaar';
-  type Metric = 'house' | 'solar' | 'grid' | 'tout' | 'soc';
+  type Metric = 'house' | 'solar' | 'grid' | 'tout' | 'soc' | 'l1' | 'l2' | 'l3';
 
   const today = todayIso();
   let mode = $state<Mode>('dag');
@@ -137,7 +137,9 @@
             ? d.ch.grid_w
             : metric === 'tout'
               ? d.ch.t_out
-              : d.ch.bat1_soc.map((v, i) => (v == null ? null : (v + (d.ch.bat2_soc[i] ?? v)) / 2));
+              : metric === 'l1' || metric === 'l2' || metric === 'l3'
+                ? (d.ch['grid_' + metric] ?? [])
+                : d.ch.bat1_soc.map((v, i) => (v == null ? null : (v + (d.ch.bat2_soc[i] ?? v)) / 2));
     const n = Math.max(dayA.n, dayB.n);
     const x = Array.from({ length: n }, (_, i) => (i * 300) / 3600);
     const pad = (a: (number | null)[]) => Array.from({ length: n }, (_, i) => a[i] ?? null);
@@ -159,6 +161,9 @@
     { id: 'grid', label: 'Net' },
     { id: 'soc', label: 'Batterij %' },
     { id: 'tout', label: 'Buiten' },
+    { id: 'l1', label: 'Fase 1' },
+    { id: 'l2', label: 'Fase 2' },
+    { id: 'l3', label: 'Fase 3' },
   ];
 
   // Staafvergelijking (week/maand)
@@ -256,7 +261,7 @@
     <div class="card-head wrap">
       <h2 class="card-title">{mode === 'dag' ? 'Door de dag heen' : mode === 'jaar' ? 'Per maand' : 'Per dag'}</h2>
       <div class="seg small" role="group" aria-label="Grootheid">
-        {#each METRICS.filter((m) => mode === 'dag' || m.id !== 'soc') as m (m.id)}
+        {#each METRICS.filter((m) => mode === 'dag' || !['soc', 'l1', 'l2', 'l3'].includes(m.id)) as m (m.id)}
           <button type="button" aria-pressed={metric === m.id} onclick={() => (metric = m.id)}>{m.label}</button>
         {/each}
       </div>
@@ -417,6 +422,10 @@
   }
   .card-head.wrap {
     flex-wrap: wrap;
+  }
+  .seg.small {
+    flex-wrap: wrap;
+    border-radius: 18px;
   }
   .seg.small button {
     height: 32px;

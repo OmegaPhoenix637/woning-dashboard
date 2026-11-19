@@ -67,12 +67,14 @@ const char* chName(int ch, char* buf, size_t len) {
     snprintf(buf, len, "ac_%s_%s", CLIMATE_IDS[i], k == 0 ? "t" : k == 1 ? "set" : "mode");
     return buf;
   }
-  static const char* const rest[] = {"pellet_t", "pellet_on", "eurom_slaap_on", "eurom_bad_on", "eurom_slaap_t", "eurom_bad_t"};
+  static const char* const rest[] = {"pellet_t", "pellet_on", "eurom_slaap_on", "eurom_bad_on", "eurom_slaap_t", "eurom_bad_t",
+                                     "grid_l1", "grid_l2", "grid_l3"};
   return rest[ch - CH_PELLET_T];
 }
 
 static bool isPower(int ch) {
-  return ch == CH_GRID_W || ch == CH_GRID_MAX || ch == CH_SOLAR_W || ch == CH_BAT1_W || ch == CH_BAT2_W;
+  return ch == CH_GRID_W || ch == CH_GRID_MAX || ch == CH_SOLAR_W || ch == CH_BAT1_W || ch == CH_BAT2_W || ch == CH_L1 ||
+         ch == CH_L2 || ch == CH_L3;
 }
 static uint8_t chScale(int ch) {
   if (isPower(ch) || ch == CH_CLOUD || ch == CH_PELLET_ON || ch == CH_EUROM_SLAAP_ON || ch == CH_EUROM_BAD_ON) return 1;
@@ -132,6 +134,7 @@ static void saveMeta() {
   d["start"] = M.start;
   d["n"] = M.n;
   d["cur"] = M.curIdx;
+  d["nch"] = N_CH;
   JsonArray c0 = d["c0"].to<JsonArray>(), c1 = d["c1"].to<JsonArray>();
   for (int k = 0; k < N_K; k++) {
     if (isnan(M.c0[k])) c0.add(nullptr);
@@ -223,7 +226,9 @@ static void restore() {
   }
   for (int ch = 0; ch < N_CH; ch++)
     for (int s = 0; s < MAX_STEPS; s++) V[ch][s] = MISSING;
-  File rf = LittleFS.exists("/today/rows.bin") ? LittleFS.open("/today/rows.bin", "r") : File();
+  bool sameLayout = (d["nch"] | 0) == N_CH;
+  if (!sameLayout) Serial.println("[sampler] nieuwe firmware met andere kanalen: meetpunten van vandaag opnieuw beginnen");
+  File rf = (sameLayout && LittleFS.exists("/today/rows.bin")) ? LittleFS.open("/today/rows.bin", "r") : File();
   if (rf) {
     uint16_t idx;
     while (rf.read((uint8_t*)&idx, 2) == 2) {
@@ -362,8 +367,10 @@ static void finalizeDay() {
   String base = String("/p/") + M.date;
   File f = LittleFS.open(base + ".bin", "w");
   if (f) {
+    uint16_t nch = N_CH;
     f.write((uint8_t*)&M.start, 4);
     f.write((uint8_t*)&M.n, 2);
+    f.write((uint8_t*)&nch, 2);
     for (int ch = 0; ch < N_CH; ch++) f.write((uint8_t*)V[ch], M.n * 2);
     f.close();
   }
@@ -542,8 +549,10 @@ bool writePendingDayJson(const String& date, Print& out) {
   if (!f) return false;
   uint32_t start = 0;
   uint16_t n = 0;
+  uint16_t nch = 0;
   f.read((uint8_t*)&start, 4);
   f.read((uint8_t*)&n, 2);
+  f.read((uint8_t*)&nch, 2);
   char nb[32];
   writeHeader(out, date.c_str(), start, n);
   int16_t buf[48];
@@ -554,6 +563,10 @@ bool writePendingDayJson(const String& date, Print& out) {
     out.print("\":[");
     uint8_t sc = chScale(ch);
     int left = n, s = 0;
+    if (ch >= nch) {  // kanaal bestond nog niet toen deze dag werd opgeslagen
+      for (int j = 0; j < n; j++) out.print(j ? ",null" : "null");
+      left = 0;
+    }
     while (left > 0) {
       int k = min(left, 48);
       f.read((uint8_t*)buf, k * 2);
