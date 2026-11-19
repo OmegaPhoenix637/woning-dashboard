@@ -93,6 +93,10 @@ await shoot('21-android-klein-overzicht', '#/overzicht', { width: 360, height: 7
 await shoot('22-iphone15-overzicht', '#/overzicht', { width: 393, height: 852, scale: 2, mobile: true, full: false });
 await shoot('23-android-klein-energie', '#/energie', { width: 360, height: 780, scale: 2, mobile: true });
 
+await shoot('24-android-klein-scene', '#/overzicht', { width: 360, height: 780, scale: 2, mobile: true, full: false, action: async (p) => p.evaluate(() => window.scrollTo(0, 230)) });
+await shoot('25-iphone15-scene', '#/overzicht', { width: 393, height: 852, scale: 2, mobile: true, full: false, action: async (p) => p.evaluate(() => window.scrollTo(0, 230)) });
+await shoot('26-iphone16promax-scene', '#/overzicht', { width: 440, height: 956, scale: 2, mobile: true, full: false, action: async (p) => p.evaluate(() => window.scrollTo(0, 230)) });
+
 // App-iconen (PNG) voor installatie op telefoon
 if (!filter) {
   const ctx = await browser.newContext({ viewport: { width: 512, height: 512 } });

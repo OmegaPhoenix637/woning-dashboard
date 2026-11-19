@@ -229,6 +229,11 @@
     display: none;
   }
 
+  @media (max-width: 400px) {
+    .topbar .brand span {
+      display: none; /* smal scherm: alleen het icoon, zodat de live-melding past */
+    }
+  }
   .loading {
     display: grid;
     place-items: center;

@@ -33,11 +33,11 @@
     tall
       ? {
           W: 400,
-          H: 610,
+          H: 700,
           house: { x: 114, y: 196, s: 0.76 },
-          houseLabel: [256, 402],
-          phases: [318, 520],
-          nodes: { sun: [80, 128], bat: [318, 128], grid: [80, 482] },
+          houseLabel: [200, 398],
+          phases: [294, 588],
+          nodes: { sun: [80, 128], bat: [320, 128], grid: [80, 566] },
           r: 44,
         }
       : {
@@ -45,8 +45,8 @@
           H: 470,
           house: { x: 380, y: 92, s: 1.08 },
           houseLabel: [500, 378],
-          phases: [840, 372],
-          nodes: { sun: [170, 112], bat: [830, 196], grid: [170, 330] },
+          phases: [830, 330],
+          nodes: { sun: [170, 112], bat: [830, 112], grid: [170, 330] },
           r: 46,
         },
   );
@@ -75,7 +75,7 @@
   const flows = $derived([
     { id: 'sun', d: link(L.nodes.sun, H(tall ? 10 : 6, 77)), w: solarW, c: 'solar', rev: false },
     { id: 'grid', d: link(L.nodes.grid, H(0, 214)), w: gridW, c: 'grid', rev: gridW < 0 },
-    { id: 'bat', d: link(L.nodes.bat, H(210, tall ? 118 : 150)), w: batW, c: 'battery', rev: batW > 0 },
+    { id: 'bat', d: link(L.nodes.bat, H(210, 118)), w: batW, c: 'battery', rev: batW > 0 },
   ]);
 
   const motionOk =
@@ -539,20 +539,21 @@
   .phases {
     position: absolute;
     transform: translate(-50%, -50%);
-    width: clamp(150px, 20cqw, 230px);
+    width: clamp(190px, 25cqw, 290px);
     display: grid;
-    gap: 7px;
-    padding: 12px 14px;
+    gap: 9px;
+    padding: 14px 16px;
     border-radius: 16px;
     background: color-mix(in srgb, var(--surface-2) 70%, transparent);
     border: 1px solid var(--border);
   }
   .tall .phases {
-    width: 40cqw;
+    width: 48cqw;
+    gap: 7px;
     padding: 10px 12px;
   }
   .ph-title {
-    font-size: 12px;
+    font-size: clamp(12px, 1.5cqw, 15px);
     font-weight: 600;
     color: var(--text-2);
   }
@@ -566,7 +567,7 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    font-size: 12.5px;
+    font-size: clamp(12.5px, 1.6cqw, 16px);
     font-weight: 650;
     color: var(--text-2);
   }
@@ -577,7 +578,8 @@
     background: var(--c);
   }
   .ph-bar {
-    height: 6px;
+    height: 7px;
+    min-width: 24px;
     border-radius: 999px;
     background: color-mix(in srgb, var(--c) 14%, transparent);
     overflow: hidden;
@@ -593,7 +595,7 @@
     opacity: 0.45;
   }
   .ph-val {
-    font-size: 13.5px;
+    font-size: clamp(13.5px, 1.9cqw, 19px);
     font-weight: 700;
     font-variant-numeric: tabular-nums;
     min-width: 54px;
