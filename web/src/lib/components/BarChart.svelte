@@ -20,6 +20,7 @@
     valueFormat,
     highlight = -1,
     onselect,
+    minGroupWidth,
     ariaLabel,
   }: {
     labels: string[];
@@ -30,6 +31,7 @@
     valueFormat?: (v: number) => string;
     highlight?: number;
     onselect?: (i: number) => void;
+    minGroupWidth?: number;
     ariaLabel: string;
   } = $props();
 
@@ -46,7 +48,7 @@
   const n = $derived(labels.length);
   const k = $derived(Math.max(1, visible.length));
   // Minimale breedte per groep: genoeg voor duimvriendelijke staven
-  const minGroup = $derived(k > 1 ? 40 : 28);
+  const minGroup = $derived(minGroupWidth ?? (k > 1 ? 40 : 28));
   const avail = $derived(Math.max(50, width - AXIS_W));
   const plotW = $derived(Math.max(avail, n * minGroup));
   const scrolls = $derived(plotW > avail + 1);

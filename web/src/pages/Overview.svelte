@@ -150,6 +150,7 @@
         gridW={live.grid.w}
         houseW={house}
         batteries={live.batteries}
+        phases={[live.grid.l1, live.grid.l2, live.grid.l3]}
         night={nightNow}
       />
     </section>

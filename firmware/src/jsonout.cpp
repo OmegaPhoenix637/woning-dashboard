@@ -59,6 +59,8 @@ void writeLiveJson(Print& out) {
     num(b["soc"], live.batSoc[i], 1);
     num(b["w"], live.batW[i], 0);
     b["capacityKwh"] = BAT_CAPACITY_KWH;
+    num(b["totalChargeKwh"], live.batChgKwh[i], 2);
+    num(b["totalDischargeKwh"], live.batDisKwh[i], 2);
   }
 
   d["ev"] = nullptr;  // geen laadpaal

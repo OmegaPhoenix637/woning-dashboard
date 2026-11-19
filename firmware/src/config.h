@@ -25,7 +25,11 @@
 #define IV_AGUA 300000UL
 #define IV_EUROM 300000UL
 #define IV_WEATHER 1800000UL
-#define IV_LIVE_UPLOAD 300000UL  // live.json + today.json naar GitHub
+// GitHub staat ~500 schrijfacties per uur toe.
+//  - elke 10 s live.json bijwerken met 1 actie (Contents API)          = 360/uur
+//  - elke 5 min live + today.json als nieuwe commit zonder geschiedenis = 4 acties -> 48/uur
+#define IV_LIVE_UPLOAD 9000UL  // gemeten effectief ~10 s (een upload duurt zelf 1-2 s)
+#define IV_TODAY_UPLOAD 300UL  // seconden
 #define IV_RETRY_DAYS 600000UL   // opnieuw proberen van achterstallige dagen
 
 // Buffer: oude, al geüploade dagen worden lokaal opgeruimd. Niet-geüploade blijven tot het geheugen vol is.

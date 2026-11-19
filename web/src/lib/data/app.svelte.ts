@@ -166,15 +166,15 @@ class AppState {
     const demo = this.isDemo;
     let tick = 0;
     this.timers = [
-      setInterval(() => (this.now = Date.now()), 15_000),
+      setInterval(() => (this.now = Date.now()), 1_000),
       setInterval(
         () => {
           if (document.hidden) return;
           tick++;
-          // Demo: elke 5 s een nieuwe waarde zodat je de animaties ziet. Echt: elke minuut.
-          this.refreshLive(demo ? tick % 12 === 0 : tick % 5 === 0);
+          // Elke 6 s de live-waarden (de ESP uploadt elke ~10 s); de grafiekdata elke minuut.
+          this.refreshLive(tick % 10 === 0);
         },
-        demo ? 5_000 : 60_000,
+        6_000,
       ),
     ];
   }

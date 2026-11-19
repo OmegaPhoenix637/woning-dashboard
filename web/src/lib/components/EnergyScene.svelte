@@ -13,12 +13,14 @@
     gridW,
     houseW,
     batteries,
+    phases = null,
     night = false,
   }: {
     solarW: number;
     gridW: number;
     houseW: number;
     batteries: Battery[];
+    phases?: (number | null | undefined)[] | null;
     night?: boolean;
   } = $props();
 
@@ -34,6 +36,7 @@
           H: 610,
           house: { x: 114, y: 196, s: 0.76 },
           houseLabel: [256, 402],
+          phases: [318, 520],
           nodes: { sun: [80, 128], bat: [318, 128], grid: [80, 482] },
           r: 44,
         }
@@ -42,6 +45,7 @@
           H: 470,
           house: { x: 380, y: 92, s: 1.08 },
           houseLabel: [500, 378],
+          phases: [840, 372],
           nodes: { sun: [170, 112], bat: [830, 196], grid: [170, 330] },
           r: 46,
         },
@@ -272,6 +276,20 @@
       </span>
     </div>
   </div>
+
+  {#if phases && phases.some((p) => p != null)}
+    <div class="phases" style={pos(L.phases)}>
+      <span class="ph-title">Per fase</span>
+      {#each phases as p, i (i)}
+        {@const v = p ?? 0}
+        <div class="ph-row" style="--c: var(--c-l{i + 1})">
+          <span class="ph-name"><i></i>L{i + 1}</span>
+          <span class="ph-bar"><span style="width:{Math.min(100, (Math.abs(v) / 5750) * 100)}%" class:back={v < 0}></span></span>
+          <span class="ph-val">{#if p == null}—{:else}{v < 0 ? '−' : ''}<AnimatedNumber value={Math.abs(v)} format={(x) => P(x)[0]} /><small>{P(v)[1]}</small>{/if}</span>
+        </div>
+      {/each}
+    </div>
+  {/if}
 
   <div class="house-cap" style={pos(L.houseLabel)}>
     <span class="name">Huis verbruikt</span>
@@ -517,6 +535,76 @@
     to {
       transform: rotate(360deg);
     }
+  }
+  .phases {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    width: clamp(150px, 20cqw, 230px);
+    display: grid;
+    gap: 7px;
+    padding: 12px 14px;
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+    border: 1px solid var(--border);
+  }
+  .tall .phases {
+    width: 40cqw;
+    padding: 10px 12px;
+  }
+  .ph-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-2);
+  }
+  .ph-row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 8px;
+  }
+  .ph-name {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12.5px;
+    font-weight: 650;
+    color: var(--text-2);
+  }
+  .ph-name i {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--c);
+  }
+  .ph-bar {
+    height: 6px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--c) 14%, transparent);
+    overflow: hidden;
+  }
+  .ph-bar span {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: var(--c);
+    transition: width 0.8s var(--ease-out);
+  }
+  .ph-bar span.back {
+    opacity: 0.45;
+  }
+  .ph-val {
+    font-size: 13.5px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    min-width: 54px;
+    text-align: right;
+    white-space: nowrap;
+  }
+  .ph-val small {
+    font-size: 0.75em;
+    color: var(--text-2);
+    margin-left: 2px;
+    font-weight: 600;
   }
   .cap,
   .house-cap {

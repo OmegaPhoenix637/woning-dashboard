@@ -135,12 +135,13 @@ static void startWifi() {
   if (ssid.length()) connectWifi(ssid, cfg("wifi_pass"), 4);
   if (WiFi.status() == WL_CONNECTED) {
     Serial.printf("Wifi OK, IP %s\n", WiFi.localIP().toString().c_str());
-    WiFi.setSleep(false);
+    WiFi.setSleep(false);  // radio altijd paraat: snelle uploads (elke ~10 s)
+  } else if (ssid.length()) {
+    // Wifi is ingesteld maar lukt (nog) niet: geen instelnetwerk, gewoon blijven proberen (instellen kan via USB).
+    Serial.printf("Verbinden met '%s' mislukt: %s (code %d). Opnieuw proberen over 30 s.\n", ssid.c_str(),
+                  reasonText(lastDiscReason), lastDiscReason);
+    scanNetworks();
   } else {
-    if (ssid.length()) {
-      Serial.printf("Verbinden met '%s' mislukt: %s (code %d)\n", ssid.c_str(), reasonText(lastDiscReason), lastDiscReason);
-      scanNetworks();
-    }
     // Geen wifi: eigen netwerk opzetten zodat je de instellingen kunt invullen (http://192.168.4.1)
     apMode = true;
     WiFi.mode(WIFI_AP_STA);
@@ -152,6 +153,7 @@ static void startWifi() {
 
 void setup() {
   Serial.begin(115200);
+  setCpuFrequencyMhz(160);  // ruim genoeg; koeler en zuiniger dan 240 MHz
   delay(200);
   Serial.printf("\n=== Mijn Woning datalogger %s ===\n", FW_VERSION);
   if (!LittleFS.begin(true)) Serial.println("LittleFS mislukt");
@@ -225,7 +227,10 @@ void loop() {
   if (now - lastLiveUpload >= IV_LIVE_UPLOAD || portalWantsUpload()) {
     lastLiveUpload = now;
     String err;
-    if (ghPublishLive(err)) markOk(S_GITHUB);
+    unsigned long t0 = millis();
+    bool ok = ghPublishLive(err);
+    Serial.printf("[github] live %s in %lu ms (vrij geheugen %u)\n", ok ? "ok" : err.c_str(), millis() - t0, ESP.getFreeHeap());
+    if (ok) markOk(S_GITHUB);
     else markErr(S_GITHUB, err);
     return;
   }

@@ -454,9 +454,9 @@ export class DemoSource implements DataSource {
         importKwh: end.meterImport,
         exportKwh: end.meterExport,
         gasM3: Math.round(end.meterGas * 1000) / 1000,
-        l1: Math.round(liveGrid * 0.45),
-        l2: Math.round(liveGrid * 0.3),
-        l3: Math.round(liveGrid * 0.25),
+        l1: Math.round(lastVal(day.ch.grid_l1) ?? liveGrid * 0.45),
+        l2: Math.round(lastVal(day.ch.grid_l2) ?? liveGrid * 0.3),
+        l3: Math.round(lastVal(day.ch.grid_l3) ?? liveGrid * 0.25),
         voltage: r1(jit(231.5, 3)),
       },
       solar: {
@@ -474,6 +474,8 @@ export class DemoSource implements DataSource {
         capacityKwh: b.capacityKwh,
         soc: end.soc[i],
         w: Math.round(i === 0 ? liveB1 : liveB2),
+        totalChargeKwh: Math.round((i ? 341.2 : 356.8) + day.totals.batChargeKwh / 2),
+        totalDischargeKwh: Math.round((i ? 309.5 : 322.1) + day.totals.batDischargeKwh / 2),
       })),
       climate: DEVICES.climate.map((c) => {
         const mode = (lastVal(day.ch['ac_' + c.id + '_mode']) ?? 0) as number;

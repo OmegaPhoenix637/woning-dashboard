@@ -19,7 +19,10 @@ int httpJson(const char* method, const String& url, const String& body, JsonDocu
   http.setReuse(false);
   http.useHTTP10(true);  // geen chunked encoding → antwoord kan direct gestreamd worden
   http.setTimeout(timeoutMs);
-  http.setConnectTimeout(8000);
+  bool lan = url.indexOf("://192.168.") > 0 || url.indexOf("://10.") > 0 || url.indexOf("://172.") > 0;
+  http.setConnectTimeout(lan ? 3000 : 8000);
+  if (lan && timeoutMs > 6000) timeoutMs = 6000;
+  http.setTimeout(timeoutMs);
   bool ok = tls ? http.begin(secure, url) : http.begin(plain, url);
   if (!ok) {
     if (errOut) *errOut = "ongeldige url";

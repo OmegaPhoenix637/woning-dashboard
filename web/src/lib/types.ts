@@ -45,6 +45,8 @@ export interface Battery {
   soc: number; // %
   w: number; // + laden, - ontladen
   capacityKwh: number;
+  totalChargeKwh?: number | null; // teller sinds installatie
+  totalDischargeKwh?: number | null;
 }
 
 export interface SourceHealth {

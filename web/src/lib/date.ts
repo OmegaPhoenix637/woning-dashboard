@@ -106,7 +106,8 @@ export function fmtMinutes(min: number): string {
 
 export function relativeAgo(unixS: number, nowMs = Date.now()): string {
   const s = Math.max(0, Math.round(nowMs / 1000 - unixS));
-  if (s < 45) return 'zojuist';
+  if (s < 5) return 'zojuist';
+  if (s < 60) return `${s} sec geleden`;
   const m = Math.round(s / 60);
   if (m < 60) return `${m} min geleden`;
   const h = Math.round(m / 60);

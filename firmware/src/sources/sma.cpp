@@ -44,6 +44,7 @@ static void publish(bool anyErr, const String& lastErr) {
 // Keys: 6100_40263F00 = AC-vermogen (W), 6400_00260100 = totale opbrengst (Wh)
 static String sid[2];
 static String scheme[2] = {"http://", "http://"};  // jullie omvormers draaien op http; https als reserve
+static bool schemeOk[2] = {false, false};             // dit protocol heeft al eens gewerkt: niet meer wisselen
 
 static bool webLogin(int i, const String& ip, String& err) {
   String pass = (i == 1 && cfgHas("sma_pass2")) ? cfg("sma_pass2") : cfg("sma_pass");
@@ -58,11 +59,12 @@ static bool webLogin(int i, const String& ip, String& err) {
   serializeJson(body, b);
   JsonDocument doc;
   int code = httpJson("POST", scheme[i] + ip + "/dyn/login.json", b, doc, nullptr, {{"Content-Type", "application/json"}}, &err, 8000);
-  if (code < 0) {  // geen verbinding: probeer het andere protocol
+  if (code < 0 && !schemeOk[i]) {  // geen verbinding en nog nooit gelukt: probeer het andere protocol
     scheme[i] = scheme[i] == "http://" ? "https://" : "http://";
     code = httpJson("POST", scheme[i] + ip + "/dyn/login.json", b, doc, nullptr, {{"Content-Type", "application/json"}}, &err, 8000);
   }
   if (code != 200) return false;
+  if (code > 0) schemeOk[i] = true;
   if (doc["result"]["sid"].is<const char*>()) {
     sid[i] = doc["result"]["sid"].as<String>();
     return true;
@@ -218,6 +220,8 @@ void pollSma() {
     publish(!ok, err);
     return;
   }
+  static uint32_t nightSkipUntil = 0;
+  if (isNight() && millis() < nightSkipUntil) return;  // slapen: niet steeds wachten op een time-out
   const char* keys[2] = {"sma1_ip", "sma2_ip"};
   bool any = false, anyErr = false;
   String lastErr;
@@ -233,6 +237,7 @@ void pollSma() {
     }
   }
   if (any && anyErr && isNight()) {
+    nightSkipUntil = millis() + 600000UL;  // 's nachts: pas over 10 minuten opnieuw proberen
     // De communicatie van de Sunny Boy krijgt stroom van de panelen: 's nachts onbereikbaar = normaal.
     live.smaW[0] = cfg("sma1_ip").length() ? 0 : NAN;
     live.smaW[1] = cfg("sma2_ip").length() ? 0 : NAN;

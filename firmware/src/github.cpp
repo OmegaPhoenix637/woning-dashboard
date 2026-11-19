@@ -5,6 +5,7 @@
 #include <WiFiClientSecure.h>
 #include <functional>
 #include <vector>
+#include "config.h"
 #include "jsonout.h"
 #include "net.h"
 #include "sampler.h"
@@ -27,23 +28,24 @@ static int ghApi(const char* method, const String& path, const String& body, Jso
                   &err, 30000);
 }
 
-// Blob maken: de inhoud wordt twee keer gegenereerd (eerst tellen, dan base64 streamen).
-static bool createBlob(std::function<void(Print&)> writer, String& sha, String& err) {
+// Verzoek met gestreamde inhoud: body = pre + base64(writer) + post. De inhoud wordt twee keer gemaakt
+// (eerst tellen voor Content-Length, dan versturen), zodat hij nooit in zijn geheel in het geheugen staat.
+static int streamB64(const char* method, const String& path, const String& pre, std::function<void(Print&)> writer,
+                     const String& post, JsonDocument& out, const JsonDocument& filter, String& err) {
+  uint32_t t0 = millis();
   CountPrint cnt;
   writer(cnt);
-  size_t b64 = 4 * ((cnt.n + 2) / 3);
-  const char* pre = "{\"encoding\":\"base64\",\"content\":\"";
-  const char* post = "\"}";
-  size_t total = strlen(pre) + b64 + strlen(post);
-
+  size_t total = pre.length() + 4 * ((cnt.n + 2) / 3) + post.length();
+  uint32_t tCount = millis();
   WiFiClientSecure c;
   c.setInsecure();
   c.setTimeout(30);
   if (!c.connect(GH_HOST, 443)) {
     err = "geen verbinding met GitHub";
-    return false;
+    return -1;
   }
-  c.printf("POST %s/git/blobs HTTP/1.0\r\n", repoPath().c_str());
+  uint32_t tConn = millis();
+  c.printf("%s %s HTTP/1.0\r\n", method, path.c_str());
   c.printf("Host: %s\r\n", GH_HOST);
   c.printf("Authorization: Bearer %s\r\n", cfg("gh_token").c_str());
   c.print("User-Agent: mijn-woning-esp32\r\nAccept: application/vnd.github+json\r\nX-GitHub-Api-Version: 2022-11-28\r\n");
@@ -57,20 +59,34 @@ static bool createBlob(std::function<void(Print&)> writer, String& sha, String& 
     bp.print(post);
     bp.flush();
   }
+  uint32_t tSent = millis();
+  c.setTimeout(20);                            // socket
+  static_cast<Stream&>(c).setTimeout(20000);   // en de Stream-functies (readStringUntil, JSON)
+  while (!c.available() && c.connected() && millis() - tSent < 20000) delay(10);
   String status = c.readStringUntil('\n');
+  uint32_t tStatus = millis();
   int code = status.length() > 12 ? status.substring(9, 12).toInt() : 0;
   while (c.connected() || c.available()) {
     String line = c.readStringUntil('\n');
     if (line == "\r" || line.length() == 0) break;
   }
-  JsonDocument filter;
+  deserializeJson(out, c, DeserializationOption::Filter(filter));
+  uint32_t tBody = millis();
+  c.stop();
+  if (code < 200 || code >= 300)
+    Serial.printf("[github] %s %s -> %d na %lu ms\n", method, path.c_str(), code, millis() - t0);
+  if (code < 200 || code >= 300) err = "HTTP " + String(code) + " " + (out["message"] | "");
+  return code;
+}
+
+// Blob maken (Git Data API)
+static bool createBlob(std::function<void(Print&)> writer, String& sha, String& err) {
+  JsonDocument filter, doc;
   filter["sha"] = true;
   filter["message"] = true;
-  JsonDocument doc;
-  deserializeJson(doc, c, DeserializationOption::Filter(filter));
-  c.stop();
+  int code = streamB64("POST", repoPath() + "/git/blobs", "{\"encoding\":\"base64\",\"content\":\"", writer, "\"}", doc, filter, err);
   if (code != 201 || !doc["sha"].is<const char*>()) {
-    err = "blob: HTTP " + String(code) + " " + (doc["message"] | "");
+    err = "blob: " + err;
     return false;
   }
   sha = doc["sha"].as<String>();
@@ -140,13 +156,35 @@ bool ghPublishLive(String& err) {
     err = "geen GitHub-token";
     return false;
   }
+  static String liveSha;     // blob-sha van live.json zoals hij nu op de live-branch staat
+  static uint32_t fullAt = 0;  // laatste volledige upload (live + today, zonder geschiedenis)
+
+  // Snel: alleen live.json bijwerken met één verzoek (Contents API)
+  if (liveSha.length() && nowUnix() - fullAt < IV_TODAY_UPLOAD) {
+    JsonDocument filter, doc;
+    filter["content"]["sha"] = true;
+    filter["message"] = true;
+    int code = streamB64("PUT", repoPath() + "/contents/live.json",
+                         "{\"message\":\"live\",\"branch\":\"live\",\"sha\":\"" + liveSha + "\",\"content\":\"",
+                         [](Print& p) { writeLiveJson(p); }, "\"}", doc, filter, err);
+    if (code == 200 && doc["content"]["sha"].is<const char*>()) {
+      liveSha = doc["content"]["sha"].as<String>();
+      lastLiveOk = nowUnix();
+      return true;
+    }
+    liveSha = "";  // iets mis (bv. sha klopt niet meer): hieronder volledig opnieuw
+  }
+
+  // Volledig: live + today als nieuwe commit zonder geschiedenis (houdt de repo klein)
   std::vector<Entry> entries;
-  String sha;
-  if (!createBlob([](Print& p) { writeLiveJson(p); }, sha, err)) return false;
-  entries.push_back({"live.json", sha});
+  String sha, lsha;
+  if (!createBlob([](Print& p) { writeLiveJson(p); }, lsha, err)) return false;
+  entries.push_back({"live.json", lsha});
   if (!createBlob([](Print& p) { writeTodayJson(p); }, sha, err)) return false;
   entries.push_back({"today.json", sha});
   if (!commitTree("live", entries, false, "live", err)) return false;
+  liveSha = lsha;
+  fullAt = nowUnix();
   lastLiveOk = nowUnix();
   return true;
 }
@@ -166,6 +204,8 @@ static bool bootstrapSummary(int year, String& err) {
   c.printf("GET %s/contents/summary/%d.json?ref=main HTTP/1.0\r\nHost: %s\r\n", repoPath().c_str(), year, GH_HOST);
   c.printf("Authorization: Bearer %s\r\n", cfg("gh_token").c_str());
   c.print("User-Agent: mijn-woning-esp32\r\nAccept: application/vnd.github.raw+json\r\nX-GitHub-Api-Version: 2022-11-28\r\nConnection: close\r\n\r\n");
+  static_cast<Stream&>(c).setTimeout(20000);
+  { uint32_t w = millis(); while (!c.available() && c.connected() && millis() - w < 20000) delay(10); }
   String status = c.readStringUntil('\n');
   int code = status.length() > 12 ? status.substring(9, 12).toInt() : 0;
   while (c.connected() || c.available()) {

@@ -25,7 +25,7 @@
   const NAV: { route: Route; label: string; short: string; icon: IconNode; tab: boolean }[] = [
     { route: 'overzicht', label: 'Overzicht', short: 'Overzicht', icon: LayoutDashboard, tab: true },
     { route: 'energie', label: 'Energie', short: 'Energie', icon: Zap, tab: true },
-    { route: 'batterijen', label: 'Batterijen', short: 'Accu', icon: BatteryCharging, tab: false },
+    { route: 'batterijen', label: 'Batterijen', short: 'Batterij', icon: BatteryCharging, tab: true },
     { route: 'klimaat', label: 'Klimaat', short: 'Klimaat', icon: Thermometer, tab: true },
     { route: 'apparaten', label: 'Apparaten', short: 'Apparaten', icon: WashingMachine, tab: true },
     { route: 'vergelijken', label: 'Vergelijken', short: 'Vergelijk', icon: GitCompareArrows, tab: true },
@@ -195,7 +195,7 @@
     bottom: max(10px, env(safe-area-inset-bottom));
     z-index: 40;
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(6, 1fr);
     padding: 6px;
     border-radius: 30px;
     background: color-mix(in srgb, var(--surface) 72%, transparent);
@@ -213,7 +213,7 @@
     min-height: 56px;
     padding: 6px 2px;
     border-radius: 24px;
-    font-size: 11px;
+    font-size: 10.5px;
     font-weight: 600;
     color: var(--text-3);
     -webkit-tap-highlight-color: transparent;
