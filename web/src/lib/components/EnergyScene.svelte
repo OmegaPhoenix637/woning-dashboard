@@ -35,7 +35,7 @@
           H: 610,
           house: { x: 114, y: 196, s: 0.76 },
           houseLabel: [200, 388],
-          nodes: { sun: [70, 128], bat: [330, 128], grid: [70, 482], ev: [330, 482] },
+          nodes: { sun: [80, 128], bat: [318, 128], grid: [80, 482], ev: [318, 482] },
           r: 44,
         }
       : {
@@ -241,7 +241,7 @@
       </div>
     </div>
     <div class="cap">
-      <span class="name">Batterijen · samen {n0(batSoc)}%</span>
+      <span class="name">{tall ? `Batterijen ${n0(batSoc)}%` : `Batterijen · samen ${n0(batSoc)}%`}</span>
       <span class="each">
         {#each batteries.slice(0, 2) as b, i (b.id)}
           <span class="pct"><b>{i + 1}</b>{n0(b.soc)}%</span>
@@ -542,7 +542,11 @@
     font-size: clamp(18px, 5.6cqw, 24px);
   }
   .tall .pct {
-    font-size: 12.5px;
+    font-size: 12px;
+    padding-right: 6px;
+  }
+  .tall .each {
+    gap: 4px;
   }
   .tall .val.big {
     font-size: clamp(26px, 8.4cqw, 36px);
