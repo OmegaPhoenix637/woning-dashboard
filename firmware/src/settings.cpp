@@ -115,9 +115,53 @@ bool cfgBool(const char* key) {
 
 bool cfgHas(const char* key) { return cfg(key).length() > 0; }
 
-void cfgSet(const char* key, const String& value) {
+bool cfgSet(const char* key, const String& value) {
   values[key] = value;
-  prefs.begin("mw", false);
-  prefs.putString(key, value);
+  bool ok = prefs.begin("mw", false);
+  size_t n = ok ? prefs.putString(key, value) : 0;
   prefs.end();
+  ok = ok && (n == value.length());
+  // Controle: lees terug uit het flashgeheugen
+  prefs.begin("mw", true);
+  String back = prefs.getString(key, "\x01");
+  prefs.end();
+  ok = ok && back == value;
+  Serial.printf("[instellingen] %s %s\n", key, ok ? "opgeslagen" : "NIET OPGESLAGEN");
+  return ok;
+}
+
+// Instellen via de USB-kabel (seriële monitor, 115200 baud):
+//   show                  -> alle instellingen (wachtwoorden verborgen)
+//   set <sleutel> <waarde> -> instelling opslaan, bv.  set wifi_ssid MijnWifi
+//   restart               -> herstarten
+void settingsConsole() {
+  static String line;
+  while (Serial.available()) {
+    char c = Serial.read();
+    if (c == '\r') continue;
+    if (c != '\n') {
+      if (line.length() < 300) line += c;
+      continue;
+    }
+    line.trim();
+    if (line == "show") {
+      for (size_t i = 0; i < N_FIELDS; i++) {
+        String v = cfg(FIELDS[i].key);
+        if (FIELDS[i].type == F_SECRET && v.length()) v = "(ingesteld)";
+        Serial.printf("  %-14s = %s\n", FIELDS[i].key, v.c_str());
+      }
+    } else if (line.startsWith("set ")) {
+      String rest = line.substring(4);
+      int sp = rest.indexOf(' ');
+      String key = sp < 0 ? rest : rest.substring(0, sp);
+      String val = sp < 0 ? "" : rest.substring(sp + 1);
+      if (!findField(key.c_str())) Serial.printf("Onbekende sleutel '%s' (typ 'show')\n", key.c_str());
+      else cfgSet(key.c_str(), val);
+    } else if (line == "restart") {
+      ESP.restart();
+    } else if (line.length()) {
+      Serial.println("Opdrachten: show | set <sleutel> <waarde> | restart");
+    }
+    line = "";
+  }
 }

@@ -23,4 +23,5 @@ String cfg(const char* key);
 int cfgInt(const char* key, int def = 0);
 bool cfgBool(const char* key);
 bool cfgHas(const char* key);
-void cfgSet(const char* key, const String& value);  // direct opslaan (bv. nieuw refresh-token)
+bool cfgSet(const char* key, const String& value);  // direct opslaan (bv. nieuw refresh-token)
+void settingsConsole();                             // instellen via USB

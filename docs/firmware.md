@@ -6,6 +6,10 @@ De ESP32 leest alle apparaten uit (alleen lezen, er wordt **niets** aangestuurd)
 Werk de stappen van boven naar beneden af. Na elke stap kun je op de instelpagina van de ESP
 bij **Status** zien of het werkt (✓) of wat er mis is (✕).
 
+> **Belangrijk: altijd op Opslaan klikken.** Iets invullen is nog niet opslaan. Onder elk onderdeel
+> staat een knop **Opslaan**, en zodra je iets wijzigt verschijnt onderin een gele balk. Na het
+> opslaan zie je bovenaan precies wat er is opgeslagen. **Herstarten** slaat eerst automatisch op.
+
 ---
 
 ## Stap 0 – Wat heb je nodig
@@ -249,6 +253,18 @@ Meekijken met de laptop (USB): in de map `firmware`:
 ```bash
 python -m platformio device monitor -p COM11
 ```
+
+## Instellen via de USB-kabel (reserve)
+
+Lukt de instelpagina niet? Open de seriële monitor (zie hierboven) en typ:
+```
+show                          (alle instellingen, wachtwoorden verborgen)
+set wifi_ssid NaamVanJeWifi
+set wifi_pass WachtwoordVanJeWifi
+set p1_ip 192.168.1.50
+restart
+```
+Elke `set` meldt `opgeslagen` als het gelukt is.
 
 ## Firmware bijwerken (USB)
 

@@ -11,6 +11,8 @@
 
 static WebServer server(80);
 static bool uploadNow = false;
+static String lastSaved;   // wat er bij de laatste keer opslaan is weggeschreven
+static bool lastSaveOk = true;
 
 bool portalWantsUpload() {
   bool u = uploadNow;
@@ -51,6 +53,7 @@ input[type=checkbox]{width:auto;height:auto}small{display:block;color:#86868b;fo
 table{width:100%;border-collapse:collapse;font-size:14px}td{padding:7px 4px;border-bottom:1px solid #2c2c2e}td:last-child{text-align:right;color:#a1a1a6}
 .ok{color:#3ccf5e}.bad{color:#ec835a}.note{background:#2c2c2e;border-radius:14px;padding:12px;margin-top:10px}
 code{background:#0b0b0d;padding:2px 6px;border-radius:6px;word-break:break-all}
+.sticky{position:fixed;left:12px;right:12px;bottom:12px;max-width:736px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;background:#3a2f0b;border:1px solid #fab219;border-radius:18px;padding:8px 8px 8px 16px;font-weight:600}.sticky[hidden]{display:none}main{padding-bottom:90px}
 details{background:#2c2c2e;border-radius:14px;padding:10px 14px;margin:0 0 6px}summary{cursor:pointer;font-weight:600;color:#74b3ff}
 .help{color:#c7c7cc;font-size:14.5px}.help ol,.steps{padding-left:20px;margin:8px 0}.help li,.steps li{margin:5px 0}a{color:#74b3ff}
 )CSS";
@@ -129,7 +132,22 @@ static void handleRoot() {
   if (!auth()) return;
   String b;
   b += F("<h1>Mijn Woning · ESP32</h1><p class=sub>Instellingen van de datalogger. Alleen lezen: er wordt niets aangestuurd.</p>");
-  if (server.hasArg("saved")) b += F("<div class=note>✓ Opgeslagen. Wifi-wijzigingen werken na een herstart.</div>");
+  if (server.hasArg("saved")) {
+    if (!lastSaveOk)
+      b += F("<div class=note style='background:#4a1f1f'>✕ Opslaan is (deels) mislukt. Probeer opnieuw, of stel in via de USB-kabel (zie docs/firmware.md).</div>");
+    else if (lastSaved.length())
+      b += "<div class=note>✓ Opgeslagen: " + esc(lastSaved) + ".<br>Wifi-wijzigingen werken pas na <b>Herstarten</b>.</div>";
+    else
+      b += F("<div class=note>Er was niets gewijzigd.</div>");
+  }
+  // Wifi-status in gewone taal
+  if (WiFi.status() == WL_CONNECTED)
+    b += "<div class=note>✓ Verbonden met wifi <b>" + esc(WiFi.SSID()) + "</b> · IP-adres <b>" + WiFi.localIP().toString() + "</b></div>";
+  else if (cfgHas("wifi_ssid"))
+    b += "<div class=note style='background:#4a3a14'>Nog niet verbonden met <b>" + esc(cfg("wifi_ssid")) +
+         "</b>. Klopt het wachtwoord en is het een 2,4 GHz-netwerk? Na opslaan: <b>Herstarten</b>.</div>";
+  else
+    b += F("<div class=note style='background:#4a3a14'>Instelmodus: vul hieronder bij <b>Wifi</b> jullie netwerk in, klik <b>Opslaan</b> en daarna <b>Herstarten</b>.</div>");
   b += F("<section><h2>Stappenplan</h2><ol class=steps>"
          "<li><a href='#s0'>Wifi</a> instellen en herstarten</li>"
          "<li>In de router alle apparaten een <b>vast IP-adres</b> geven en de IP-adressen noteren</li>"
@@ -143,8 +161,8 @@ static void handleRoot() {
          "<li>Op de website: Instellingen &rarr; Koppeling (met een tweede GitHub-token)</li></ol>"
          "<p class=sub style='margin:8px 0 0'>Bij elk onderdeel staat <b>Hoe doe ik dit?</b>. Bij <b>Status</b> zie je per onderdeel of het werkt.</p></section>");
   b += F("<section><h2>Status</h2><table id=st><tr><td>Laden…</td></tr></table><div class=row>"
-         "<form method=post action=/upload><button class=btn>Nu uploaden</button></form>"
-         "<form method=post action=/restart><button class=btn>Herstarten</button></form>"
+         "<form method=post action=/upload onsubmit=\"return act('upload')\"><button class=btn>Nu uploaden</button></form>"
+         "<form method=post action=/restart onsubmit=\"return act('restart')\"><button class=btn>Herstarten</button></form>"
          "<a class=btn href=/api/live target=_blank>live.json</a></div></section>");
   // Koppelen
   b += F("<section><h2>Koppelen</h2>"
@@ -159,13 +177,13 @@ static void handleRoot() {
          "<p style='margin-top:18px'><b>Home Connect</b> (Bosch/Siemens): vul de Client ID in en sla op. Daarna:</p>"
          "<form method=post action=/hc/start><button class='btn p'>Koppel Home Connect</button></form></section>");
   // Formulier
-  b += F("<form method=post action=/save>");
+  b += F("<form id=cfg method=post action=/save><input type=hidden name=then id=then value=''>");
   String group;
   int gi = 0;
   for (size_t i = 0; i < N_FIELDS; i++) {
     const FieldDef& f = FIELDS[i];
     if (group != f.group) {
-      if (group.length()) b += F("</section>");
+      if (group.length()) b += F("<button class='btn p'>Opslaan</button></section>");
       group = f.group;
       b += "<section id='s" + String(gi++) + "'><h2>" + esc(group) + "</h2>";
       const char* h = groupHelp(group);
@@ -185,31 +203,64 @@ static void handleRoot() {
     }
     if (f.hint && f.hint[0]) b += "<small>" + esc(f.hint) + "</small>";
   }
-  b += F("</section><button class='btn p' style='width:100%'>Opslaan</button></form>");
+  b += F("<button class='btn p'>Opslaan</button></section></form>"
+         "<div id=dirty class=sticky hidden><span>Je hebt wijzigingen die nog niet zijn opgeslagen</span>"
+         "<button class='btn p' form=cfg>Opslaan</button></div>"
+         "<script>let dirty=false;const f=document.getElementById('cfg');"
+         "f.addEventListener('input',()=>{dirty=true;document.getElementById('dirty').hidden=false});"
+         "f.addEventListener('submit',()=>{dirty=false});"
+         "window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue=''}});"
+         "function act(a){if(!dirty)return true;document.getElementById('then').value=a;dirty=false;f.submit();return false}"
+         "</script>");
   b += F("<script>"
          "async function s(){try{const d=await (await fetch('/api/live')).json();const h=d.health;let r='';"
          "r+=`<tr><td>Firmware</td><td>${h.fw} · ${Math.round(h.uptime/3600)} u aan · ${Math.round(h.heap/1024)} KB vrij · wifi ${h.rssi} dBm</td></tr>`;"
          "r+=`<tr><td>Wachtende dagen</td><td>${h.pending}</td></tr>`;"
+         "if(!Object.keys(h.sources).length)r+=`<tr><td colspan=2>Nog geen apparaten actief. Eerst wifi instellen, daarna starten ze vanzelf.</td></tr>`;"
          "for(const[k,v]of Object.entries(h.sources)){const age=Math.round((Date.now()/1000-v.last)/60);"
          "r+=`<tr><td>${k}</td><td class=${v.ok?'ok':'bad'}>${v.ok?'✓ werkt':'✕ '+(v.err||'fout')}${v.last?' · '+age+' min geleden':''}${v.limit?' · '+v.calls+'/'+v.limit:''}</td></tr>`}"
          "document.getElementById('st').innerHTML=r}catch(e){}}s();setInterval(s,10000)</script>");
   sendPage("Mijn Woning ESP32", b);
 }
 
+
 static void handleSave() {
   if (!auth()) return;
+  Serial.printf("[instellingen] formulier ontvangen: %d velden\n", server.args());
+  lastSaved = "";
+  lastSaveOk = true;
+  int found = 0;
   for (size_t i = 0; i < N_FIELDS; i++) {
     const FieldDef& f = FIELDS[i];
     if (f.type == F_BOOL) {
-      if (server.hasArg(String(f.key) + "__b")) cfgSet(f.key, server.hasArg(f.key) ? "1" : "0");
+      if (!server.hasArg(String(f.key) + "__b")) continue;
+      found++;
+      String v = server.hasArg(f.key) ? "1" : "0";
+      if (v != cfg(f.key)) {
+        lastSaveOk &= cfgSet(f.key, v);
+        lastSaved += String(lastSaved.length() ? ", " : "") + f.label;
+      }
       continue;
     }
     if (!server.hasArg(f.key)) continue;
+    found++;
     String v = server.arg(f.key);
     v.trim();
     if (f.type == F_SECRET && !v.length()) continue;  // leeg = niet wijzigen
-    if (v != cfg(f.key)) cfgSet(f.key, v);
+    if (v != cfg(f.key)) {
+      lastSaveOk &= cfgSet(f.key, v);
+      lastSaved += String(lastSaved.length() ? ", " : "") + f.label;
+    }
   }
+  Serial.printf("[instellingen] %d van %d velden herkend\n", found, (int)N_FIELDS);
+  if (!found) lastSaveOk = false;
+  String then = server.arg("then");
+  if (then == "restart") {
+    sendPage("Herstarten", "<h1>Opgeslagen en herstarten…</h1><p class=sub>Over ~20 seconden opnieuw openen. Is de wifi ingesteld, verbind dan weer met je eigen wifi en open <b>http://energie.local</b>.</p>");
+    delay(600);
+    ESP.restart();
+  }
+  if (then == "upload") uploadNow = true;
   server.sendHeader("Location", "/?saved=1");
   server.send(303);
 }

@@ -43,7 +43,7 @@ static void startWifi() {
   WiFi.setHostname(MDNS_NAME);
   if (ssid.length()) {
     WiFi.begin(ssid.c_str(), cfg("wifi_pass").c_str());
-    Serial.printf("Verbinden met %s", ssid.c_str());
+    Serial.printf("Verbinden met '%s'", ssid.c_str());
     for (int i = 0; i < 40 && WiFi.status() != WL_CONNECTED; i++) {
       delay(500);
       Serial.print('.');
@@ -54,6 +54,7 @@ static void startWifi() {
     Serial.printf("Wifi OK, IP %s\n", WiFi.localIP().toString().c_str());
     WiFi.setSleep(false);
   } else {
+    if (ssid.length()) Serial.printf("Verbinden met '%s' mislukt (status %d). Wachtwoord/2,4 GHz controleren.\n", ssid.c_str(), WiFi.status());
     // Geen wifi: eigen netwerk opzetten zodat je de instellingen kunt invullen (http://192.168.4.1)
     apMode = true;
     WiFi.mode(WIFI_AP_STA);
@@ -87,6 +88,7 @@ void setup() {
 void loop() {
   esp_task_wdt_reset();
   portalLoop();
+  settingsConsole();
   unsigned long now = millis();
 
   // Wifi bewaken
