@@ -22,5 +22,18 @@ String urlEncode(const String& s);
 bool modbusRead(const String& ip, uint16_t port, uint8_t unit, uint8_t fn, uint16_t reg, uint16_t count,
                 uint16_t* out, String& err);
 
+// Eén Modbus TCP-verbinding voor meerdere verzoeken (sommige apparaten weigeren snel opeenvolgende verbindingen).
+#include <WiFiClient.h>
+class ModbusConn {
+ public:
+  bool open(const String& ip, uint16_t port, String& err);
+  bool read(uint8_t unit, uint8_t fn, uint16_t reg, uint16_t count, uint16_t* out, String& err);
+  ~ModbusConn() { c_.stop(); }
+
+ private:
+  WiFiClient c_;
+  uint16_t tid_ = 1;
+};
+
 inline int32_t mbS32(const uint16_t* r) { return (int32_t)(((uint32_t)r[0] << 16) | r[1]); }
 inline uint32_t mbU32(const uint16_t* r) { return ((uint32_t)r[0] << 16) | r[1]; }

@@ -9,6 +9,8 @@
 #include "sources/sources.h"
 #include "state.h"
 
+String wifiDiagnose();
+
 static WebServer server(80);
 static bool uploadNow = false;
 static String lastSaved;   // wat er bij de laatste keer opslaan is weggeschreven
@@ -145,7 +147,8 @@ static void handleRoot() {
     b += "<div class=note>✓ Verbonden met wifi <b>" + esc(WiFi.SSID()) + "</b> · IP-adres <b>" + WiFi.localIP().toString() + "</b></div>";
   else if (cfgHas("wifi_ssid"))
     b += "<div class=note style='background:#4a3a14'>Nog niet verbonden met <b>" + esc(cfg("wifi_ssid")) +
-         "</b>. Klopt het wachtwoord en is het een 2,4 GHz-netwerk? Na opslaan: <b>Herstarten</b>.</div>";
+         "</b>. Klopt het wachtwoord (hoofdlettergevoelig) en is het een 2,4 GHz-netwerk? Na opslaan: <b>Herstarten</b>.<br>" +
+         wifiDiagnose() + "</div>";
   else
     b += F("<div class=note style='background:#4a3a14'>Instelmodus: vul hieronder bij <b>Wifi</b> jullie netwerk in, klik <b>Opslaan</b> en daarna <b>Herstarten</b>.</div>");
   b += F("<section><h2>Stappenplan</h2><ol class=steps>"

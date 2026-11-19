@@ -130,3 +130,58 @@ bool modbusRead(const String& ip, uint16_t port, uint8_t unit, uint8_t fn, uint1
   for (uint16_t i = 0; i < count; i++) out[i] = ((uint16_t)buf[i * 2] << 8) | buf[i * 2 + 1];
   return true;
 }
+
+bool ModbusConn::open(const String& ip, uint16_t port, String& err) {
+  c_.setTimeout(3);
+  if (!c_.connect(ip.c_str(), port, 3000)) {
+    err = "geen verbinding met " + ip;
+    return false;
+  }
+  return true;
+}
+
+bool ModbusConn::read(uint8_t unit, uint8_t fn, uint16_t reg, uint16_t count, uint16_t* out, String& err) {
+  if (!c_.connected()) {
+    err = "verbinding verbroken";
+    return false;
+  }
+  while (c_.available()) c_.read();  // oude restjes weg
+  uint16_t t = tid_++;
+  uint8_t req[12] = {(uint8_t)(t >> 8), (uint8_t)t, 0, 0, 0, 6, unit, fn,
+                     (uint8_t)(reg >> 8), (uint8_t)reg, (uint8_t)(count >> 8), (uint8_t)count};
+  c_.write(req, sizeof(req));
+  uint8_t hdr[9];
+  uint32_t start = millis();
+  size_t got = 0;
+  while (got < 9 && millis() - start < 3000) {
+    int a = c_.available();
+    if (a > 0) got += c_.read(hdr + got, min((size_t)a, 9 - got));
+    else delay(5);
+  }
+  if (got < 9) {
+    err = "timeout";
+    return false;
+  }
+  if (hdr[7] & 0x80) {
+    err = "modbus fout " + String(hdr[8]);
+    return false;
+  }
+  size_t n = hdr[8];
+  if (n != count * 2u || n > 250) {
+    err = "onverwachte lengte";
+    return false;
+  }
+  uint8_t buf[256];
+  got = 0;
+  while (got < n && millis() - start < 3000) {
+    int a = c_.available();
+    if (a > 0) got += c_.read(buf + got, min((size_t)a, n - got));
+    else delay(5);
+  }
+  if (got < n) {
+    err = "timeout data";
+    return false;
+  }
+  for (uint16_t i = 0; i < count; i++) out[i] = ((uint16_t)buf[i * 2] << 8) | buf[i * 2 + 1];
+  return true;
+}

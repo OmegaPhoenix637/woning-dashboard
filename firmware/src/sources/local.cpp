@@ -31,24 +31,29 @@ void pollP1() {
 }
 
 // ---------------- Marstek Venus E V3 ----------------
-// Modbus-registers (controleer met de marstek-modbus-suite en de Marstek-app, fase 3):
-//   32102 batterijvermogen (S32, W)  32104 SoC (U16, %)
-//   33000 totaal geladen (U32, 0,01 kWh)  33002 totaal ontladen (U32, 0,01 kWh)
-static const uint16_t MS_REG_POWER = 32102, MS_REG_SOC = 32104, MS_REG_ENERGY = 33000;
+// Modbus-registers, gecontroleerd op beide Venus E 3.0 (firmware 151/159):
+//   32102 batterijvermogen (S16, W)  — reserve: 30001 (S16, W)
+//   32104 laadniveau (%)             32100 spanning (x0,01 V)
+//   33000 totaal geladen (U32, 0,01 kWh)   33002 totaal ontladen (U32, 0,01 kWh)
+static const uint16_t MS_REG_POWER = 32102, MS_REG_POWER_ALT = 30001, MS_REG_SOC = 32104, MS_REG_ENERGY = 33000;
 
 static bool marstekModbus(int i, const String& ip, String& err) {
   uint16_t port = cfgInt("bat_port", 502);
   uint8_t unit = cfgInt("bat_unit", 1);
+  ModbusConn mb;
+  if (!mb.open(ip, port, err)) return false;
   uint16_t r[4];
-  if (!modbusRead(ip, port, unit, 3, MS_REG_POWER, 2, r, err)) return false;
-  float w = (float)mbS32(r);
-  if (!modbusRead(ip, port, unit, 3, MS_REG_SOC, 1, r, err)) return false;
+  if (!mb.read(unit, 3, MS_REG_SOC, 1, r, err)) return false;
   live.batSoc[i] = r[0];
-  if (modbusRead(ip, port, unit, 3, MS_REG_ENERGY, 4, r, err)) {
+  float w = NAN;
+  String e2;
+  if (mb.read(unit, 3, MS_REG_POWER, 1, r, e2) || mb.read(unit, 3, MS_REG_POWER_ALT, 1, r, e2)) w = (float)(int16_t)r[0];
+  if (mb.read(unit, 3, MS_REG_ENERGY, 4, r, e2)) {
     live.batChgKwh[i] = mbU32(r) / 100.0;
     live.batDisKwh[i] = mbU32(r + 2) / 100.0;
   }
-  live.batW[i] = cfgBool("bat_invert") ? -w : w;
+  live.batW[i] = isnan(w) ? NAN : (cfgBool("bat_invert") ? -w : w);
+  if (isnan(w)) Serial.printf("[bat%d] vermogen niet leesbaar: %s\n", i + 1, e2.c_str());
   return true;
 }
 

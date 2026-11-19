@@ -7,11 +7,14 @@
 #include "sources/sources.h"
 #include "state.h"
 
-static void num(JsonVariant v, double x, int decimals = 1) {
-  if (isnan(x)) v.set(nullptr);
-  else {
+// Let op: als template, zodat het veld via de proxy echt wordt aangemaakt (JsonVariant zou leeg blijven).
+template <typename T>
+static void num(T v, double x, int decimals = 1) {
+  if (isnan(x)) {
+    v = nullptr;
+  } else {
     double p = pow(10, decimals);
-    v.set(round(x * p) / p);
+    v = round(x * p) / p;
   }
 }
 

@@ -11,6 +11,18 @@
 
 static inline float fnum(JsonVariantConst v) { return v.is<float>() ? v.as<float>() : NAN; }
 
+// Ruwe schatting van zonsopkomst/-ondergang voor Nederland (genoeg om 'slapen' van een fout te onderscheiden).
+static bool isNight() {
+  time_t t = time(nullptr);
+  struct tm tm;
+  localtime_r(&t, &tm);
+  float season = cosf(2 * PI * (tm.tm_yday + 1 - 172) / 365.0f);
+  float dayLen = 12.2f + 4.4f * season;
+  float noon = 12.67f + (tm.tm_isdst > 0 ? 1 : 0);
+  float h = tm.tm_hour + tm.tm_min / 60.0f;
+  return h < noon - dayLen / 2 - 0.3f || h > noon + dayLen / 2 + 0.3f;
+}
+
 static void publish(bool anyErr, const String& lastErr) {
   float s = 0;
   double tot = 0;
@@ -31,6 +43,7 @@ static void publish(bool anyErr, const String& lastErr) {
 // ---------------- 0: lokaal, webinterface (zoals de Home Assistant SMA-integratie) ----------------
 // Keys: 6100_40263F00 = AC-vermogen (W), 6400_00260100 = totale opbrengst (Wh)
 static String sid[2];
+static String scheme[2] = {"http://", "http://"};  // jullie omvormers draaien op http; https als reserve
 
 static bool webLogin(int i, const String& ip, String& err) {
   String pass = (i == 1 && cfgHas("sma_pass2")) ? cfg("sma_pass2") : cfg("sma_pass");
@@ -44,7 +57,11 @@ static bool webLogin(int i, const String& ip, String& err) {
   String b;
   serializeJson(body, b);
   JsonDocument doc;
-  int code = httpJson("POST", "https://" + ip + "/dyn/login.json", b, doc, nullptr, {{"Content-Type", "application/json"}}, &err, 10000);
+  int code = httpJson("POST", scheme[i] + ip + "/dyn/login.json", b, doc, nullptr, {{"Content-Type", "application/json"}}, &err, 8000);
+  if (code < 0) {  // geen verbinding: probeer het andere protocol
+    scheme[i] = scheme[i] == "http://" ? "https://" : "http://";
+    code = httpJson("POST", scheme[i] + ip + "/dyn/login.json", b, doc, nullptr, {{"Content-Type", "application/json"}}, &err, 8000);
+  }
   if (code != 200) return false;
   if (doc["result"]["sid"].is<const char*>()) {
     sid[i] = doc["result"]["sid"].as<String>();
@@ -59,7 +76,7 @@ static bool webRead(int i, const String& ip, String& err) {
   if (!sid[i].length() && !webLogin(i, ip, err)) return false;
   for (int attempt = 0; attempt < 2; attempt++) {
     JsonDocument doc;
-    int code = httpJson("POST", "https://" + ip + "/dyn/getValues.json?sid=" + sid[i],
+    int code = httpJson("POST", scheme[i] + ip + "/dyn/getValues.json?sid=" + sid[i],
                         "{\"destDev\":[],\"keys\":[\"6100_40263F00\",\"6400_00260100\"]}", doc, nullptr,
                         {{"Content-Type", "application/json"}}, &err, 10000);
     if (code == 200 && doc["result"].is<JsonObjectConst>()) {
@@ -82,11 +99,13 @@ static bool webRead(int i, const String& ip, String& err) {
 // ---------------- 1: Modbus TCP ----------------
 static bool modbusReadSma(int i, const String& ip, String& err) {
   uint8_t unit = cfgInt("sma_unit", 3);
+  ModbusConn mb;
+  if (!mb.open(ip, 502, err)) return false;
   uint16_t r[2];
-  if (!modbusRead(ip, 502, unit, 3, 30775, 2, r, err)) return false;
+  if (!mb.read(unit, 3, 30775, 2, r, err)) return false;
   int32_t w = mbS32(r);
   live.smaW[i] = (w == (int32_t)0x80000000 || w < 0) ? 0 : (float)w;
-  if (modbusRead(ip, 502, unit, 3, 30529, 2, r, err)) {
+  if (mb.read(unit, 3, 30529, 2, r, err)) {
     uint32_t wh = mbU32(r);
     if (wh != 0xFFFFFFFF && wh != 0x80000000) live.smaTotalKwh[i] = wh / 1000.0;
   }
@@ -183,6 +202,10 @@ static bool hwRead(String& err) {
 void pollSma() {
   int mode = cfgInt("sma_mode", 0);
   String err;
+  if (mode == 0 && (cfgHas("sma1_ip") || cfgHas("sma2_ip")) && !cfgHas("sma_pass")) {
+    markErr(S_SMA, "wachtwoord 'Gebruiker' nog niet ingevuld");
+    return;
+  }
   if (mode == 2) {
     if (!cfgHas("smac_cid")) return;
     bool ok = cloudRead(err);
@@ -208,6 +231,14 @@ void pollSma() {
       lastErr = String(i ? "SB4.0: " : "SB3.0: ") + err;
       live.smaW[i] = NAN;
     }
+  }
+  if (any && anyErr && isNight()) {
+    // De communicatie van de Sunny Boy krijgt stroom van de panelen: 's nachts onbereikbaar = normaal.
+    live.smaW[0] = cfg("sma1_ip").length() ? 0 : NAN;
+    live.smaW[1] = cfg("sma2_ip").length() ? 0 : NAN;
+    publish(false, "");
+    strlcpy(live.health[S_SMA].err, "omvormer slaapt ('s nachts normaal)", sizeof(live.health[S_SMA].err));
+    return;
   }
   if (any) publish(anyErr, lastErr);
 }

@@ -11,3 +11,5 @@ web/tools/local-names.json
 screenshots/
 firmware/.pio/
 firmware/.vscode/
+# Eigen instellingen/wachtwoorden voor de ESP (nooit naar GitHub)
+firmware/secrets.json
