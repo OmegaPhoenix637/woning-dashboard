@@ -1,0 +1,458 @@
+/* ===== Ontwerp-tokens ===================================================== */
+:root {
+  color-scheme: dark;
+  /* Systeemlettertype: San Francisco op iPhone/Mac, Inter elders */
+  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter Variable', 'Segoe UI', Roboto, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter Variable', 'Segoe UI', Roboto, sans-serif;
+
+  /* iOS-achtige grijzen */
+  --bg: #000000;
+  --bg-2: #0b0b0d;
+  --surface: #1c1c1e; /* kaart- en grafiekoppervlak (gevalideerd) */
+  --surface-2: #2c2c2e;
+  --surface-3: #3a3a3c;
+  --border: rgba(255, 255, 255, 0.06);
+  --border-strong: rgba(255, 255, 255, 0.12);
+  --text: #f5f5f7;
+  --text-2: #a1a1a6;
+  --text-3: #86868b;
+  --gridline: #2a2a2d;
+  --axis: #3a3a3c;
+
+  /* Dataseries (gevalideerd op kleurenblindheid, donker oppervlak) */
+  --c-house: #3d8ef0;
+  --c-solar: #c48500;
+  --c-battery: #16a077;
+  --c-grid: #8a7be6;
+  --c-heat: #dd5e2d;
+  --c-money: #0ca30c;
+  --c-a: #3d8ef0;
+  --c-b: #dd5e2d;
+
+  /* Gloed-accenten voor iconen en animaties (geen datamarkeringen) */
+  --g-house: #74b3ff;
+  --g-solar: #ffc54d;
+  --g-battery: #34e3a9;
+  --g-grid: #ad9fff;
+  --g-heat: #ff8b52;
+  --g-cool: #6fd6ff;
+  --g-appl: #c99bff;
+  --g-money: #5ee08f;
+
+  /* Status (vast) */
+  --s-good: #0ca30c;
+  --s-good-text: #3ccf5e;
+  --s-warn: #fab219;
+  --s-serious: #ec835a;
+  --s-crit: #d03b3b;
+
+  --radius: 26px;
+  --radius-sm: 16px;
+  --shadow: none;
+  --ease: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --sidebar: 252px;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg: #f5f5f7;
+  --bg-2: #ececf0;
+  --surface: #ffffff;
+  --surface-2: #f2f2f5;
+  --surface-3: #e8e8ed;
+  --border: rgba(0, 0, 0, 0.06);
+  --border-strong: rgba(0, 0, 0, 0.12);
+  --text: #1d1d1f;
+  --text-2: #6e6e73;
+  --text-3: #86868b;
+  --gridline: #ececef;
+  --axis: #d2d2d7;
+
+  --c-house: #2a78d6;
+  --c-solar: #b87a00;
+  --c-battery: #0a8a5e;
+  --c-grid: #6250d6;
+  --c-heat: #e0602c;
+  --c-money: #008300;
+  --c-a: #2a78d6;
+  --c-b: #e0602c;
+
+  --g-house: #2a78d6;
+  --g-solar: #c98500;
+  --g-battery: #0a8a5e;
+  --g-grid: #6250d6;
+  --g-heat: #e0602c;
+  --g-cool: #0b8fc4;
+  --g-appl: #8a4fd6;
+  --g-money: #0f8a3c;
+
+  --s-good-text: #006300;
+  --shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+}
+
+/* ===== Basis ============================================================== */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html {
+  -webkit-text-size-adjust: 100%;
+  background: var(--bg);
+}
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 17px;
+  line-height: 1.47;
+  letter-spacing: -0.01em;
+  overscroll-behavior-y: none;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+a {
+  color: inherit;
+  text-decoration: none;
+}
+button {
+  font: inherit;
+  color: inherit;
+}
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+}
+p {
+  margin: 0;
+}
+:focus-visible {
+  outline: 2px solid var(--g-house);
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+.tabnum {
+  font-variant-numeric: tabular-nums;
+}
+.muted {
+  color: var(--text-3);
+}
+.sub {
+  color: var(--text-2);
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ===== Kaarten & lay-out ================================================== */
+.card {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 20px;
+  min-width: 0;
+}
+.card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.card-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+.card-title .ico {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent, var(--g-house)) 14%, transparent);
+  color: var(--accent, var(--g-house));
+}
+.eyebrow {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.grid {
+  display: grid;
+  gap: 16px;
+}
+.page {
+  display: grid;
+  gap: 20px;
+}
+.page-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 4px 0 4px;
+}
+.page-head h1 {
+  font-size: clamp(34px, 4.6vw, 56px);
+  letter-spacing: -0.035em;
+}
+.page-head p {
+  color: var(--text-2);
+  margin-top: 6px;
+}
+.section-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 8px 2px -4px;
+}
+.section-title h2 {
+  font-size: clamp(22px, 2.4vw, 28px);
+  letter-spacing: -0.03em;
+}
+.section-title a {
+  color: var(--text-2);
+  font-size: 14px;
+  font-weight: 500;
+}
+.section-title a:hover {
+  color: var(--text);
+}
+
+/* ===== Knoppen & bedieningselementen ===================================== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 42px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-2);
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, transform 0.15s;
+}
+.btn:hover {
+  background: var(--surface-3);
+}
+.btn:active {
+  transform: scale(0.98);
+}
+.btn.primary {
+  background: var(--c-house);
+  border-color: transparent;
+  color: #fff;
+}
+.btn.primary:hover {
+  filter: brightness(1.08);
+}
+.btn.ghost {
+  background: transparent;
+}
+.btn.icon {
+  width: 42px;
+  padding: 0;
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.seg {
+  display: inline-flex;
+  padding: 4px;
+  gap: 2px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+.seg button {
+  border: 0;
+  background: transparent;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-2);
+  cursor: pointer;
+  transition: background 0.25s var(--ease), color 0.25s;
+}
+.seg button[aria-pressed='true'] {
+  background: var(--text);
+  color: var(--bg);
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+.field label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.field input,
+.field select {
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-2);
+  color: var(--text);
+  padding: 0 14px;
+  font: inherit;
+  font-size: 16px;
+  min-width: 0;
+}
+.field .hint {
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+
+/* ===== Tabel ============================================================== */
+table.data {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14.5px;
+}
+table.data th,
+table.data td {
+  padding: 10px 12px;
+  text-align: right;
+  border-bottom: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+table.data th:first-child,
+table.data td:first-child {
+  text-align: left;
+}
+table.data th {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+table.data tr:last-child td {
+  border-bottom: 0;
+}
+.table-wrap {
+  overflow-x: auto;
+  margin: 0 -8px;
+  padding: 0 8px;
+}
+
+/* ===== Animatie =========================================================== */
+/* Apple-achtig: elementen glijden rustig in beeld zodra ze zichtbaar worden (zie lib/reveal.ts) */
+.rise {
+  opacity: 0;
+  transform: translateY(28px) scale(0.985);
+  transition:
+    opacity 0.9s var(--ease-out),
+    transform 1s var(--ease-out);
+  transition-delay: calc(min(var(--i, 0), 6) * 60ms);
+}
+.rise.in {
+  opacity: 1;
+  transform: none;
+}
+@keyframes pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 55%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 6px transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+:root[data-motion='off'] .rise,
+.no-reveal .rise {
+  opacity: 1;
+  transform: none;
+}
+:root[data-motion='off'] *,
+:root[data-motion='off'] *::before,
+:root[data-motion='off'] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+
+/* ===== uPlot-aanpassingen ================================================= */
+.uplot {
+  font-family: var(--font) !important;
+}
+.u-legend {
+  display: none;
+}
+.u-cursor-x {
+  border-right: 1px solid var(--text-3) !important;
+}
+.u-cursor-y {
+  display: none;
+}
+.u-select {
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+}
