@@ -79,7 +79,7 @@ static const FieldDef* findField(const char* key) {
 }
 
 void settingsLoad() {
-  prefs.begin("mw", true);
+  prefs.begin("mw", false);  // maakt de opslag aan bij de eerste start
   for (size_t i = 0; i < N_FIELDS; i++) {
     const FieldDef& f = FIELDS[i];
     values[f.key] = prefs.isKey(f.key) ? prefs.getString(f.key, f.def) : String(f.def);

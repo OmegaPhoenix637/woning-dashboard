@@ -194,6 +194,7 @@ static void newDay(uint32_t now) {
 }
 
 static void restore() {
+  if (!LittleFS.exists("/today/meta.json")) return;
   File f = LittleFS.open("/today/meta.json", "r");
   if (!f) return;
   JsonDocument d;
@@ -228,7 +229,7 @@ static void restore() {
   }
   for (int ch = 0; ch < N_CH; ch++)
     for (int s = 0; s < MAX_STEPS; s++) V[ch][s] = MISSING;
-  File rf = LittleFS.open("/today/rows.bin", "r");
+  File rf = LittleFS.exists("/today/rows.bin") ? LittleFS.open("/today/rows.bin", "r") : File();
   if (rf) {
     uint16_t idx;
     while (rf.read((uint8_t*)&idx, 2) == 2) {
