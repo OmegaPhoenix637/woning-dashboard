@@ -226,7 +226,7 @@
     <div class="card-head">
       <h2 class="card-title"><span class="ico" style="--accent: var(--g-appl)"><Icon icon={Tag} size={18} /></span>Namen van kamers en apparaten</h2>
     </div>
-    <p class="intro">Geef alles een eigen naam. Leeg laten = standaardnaam. Deze namen worden privé bewaard (niet in de openbare code).</p>
+    <p class="intro">De namen komen uit de apps. Wil je iets anders? Vul hier een eigen naam in (leeg laten = naam uit de app).</p>
     <div class="name-groups">
       {#each NAME_GROUPS as g (g.title)}
         <div class="name-group">

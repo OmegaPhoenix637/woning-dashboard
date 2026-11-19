@@ -13,8 +13,9 @@ apparaten ──► ESP32 (haalt data op) ──► privé GitHub-repo (opslag) 
 | Map | Wat |
 |---|---|
 | `web/` | De website (Svelte 5 + Vite + uPlot). Werkt meteen met demo-data. |
-| `firmware/` | ESP32-code (volgt in fase 2) |
-| `docs/dataformaat.md` | Welke JSON de ESP32 moet aanleveren |
+| `firmware/` | ESP32-WROOM-32 datalogger (PlatformIO). Handleiding: `docs/firmware.md` |
+| `docs/dataformaat.md` | Welke JSON de ESP32 aanlevert |
+| `docs/firmware.md` | ESP32 flashen, instellen en alles koppelen |
 
 ## Website lokaal draaien
 

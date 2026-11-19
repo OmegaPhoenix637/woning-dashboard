@@ -490,6 +490,8 @@
   }
   .orb.ring {
     border-color: transparent;
+    background-origin: border-box;
+    background-repeat: no-repeat;
     color: var(--c);
     background:
       radial-gradient(circle, var(--surface-2) 64%, transparent 65%),

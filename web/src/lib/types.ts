@@ -159,30 +159,29 @@ export interface DeviceMeta {
   batteries: { id: string; name: string; capacityKwh: number }[];
 }
 
-// Neutrale id's en standaardnamen. De echte namen (bv. "Slaapkamer van ...") stel je in op de pagina
-// Instellingen; die worden in de privé data-repo bewaard en staan dus niet in deze openbare code.
+// Standaardnamen zoals in de apps (Onecta, Home Connect, Marstek). Aanpasbaar bij Instellingen → Namen.
 export const DEVICES: DeviceMeta = {
   climate: [
-    { id: 'woonkamer', name: 'Woonkamer' },
+    { id: 'woonkamer', name: 'Kamer' },
     { id: 'keuken', name: 'Keuken' },
     { id: 'studio', name: 'Studio' },
-    { id: 'slaap1', name: 'Slaapkamer 1' },
-    { id: 'slaap2', name: 'Slaapkamer 2' },
-    { id: 'slaap3', name: 'Slaapkamer 3' },
-    { id: 'slaap4', name: 'Slaapkamer 4' },
+    { id: 'slaap1', name: 'Slaapkamer Fedde' },
+    { id: 'slaap2', name: 'Slaapkamer Jurre' },
+    { id: 'slaap3', name: 'Slaapkamer Remko' },
+    { id: 'slaap4', name: 'Slaapkamer C&R' },
   ],
   heaters: [
-    { id: 'pellet', name: 'Pelletkachel', kind: 'pellet' },
-    { id: 'eurom_slaap', name: 'Eurom slaapkamer', kind: 'eurom' },
+    { id: 'pellet', name: 'Nordic Fire pelletkachel', kind: 'pellet' },
+    { id: 'eurom_slaap', name: 'Eurom slaapkamer C&R', kind: 'eurom' },
     { id: 'eurom_bad', name: 'Eurom badkamer', kind: 'eurom' },
   ],
   appliances: [
-    { id: 'wasmachine', name: 'Wasmachine', kind: 'washer' },
-    { id: 'vaatwasser', name: 'Vaatwasser', kind: 'dishwasher' },
+    { id: 'wasmachine', name: 'Bosch wasmachine', kind: 'washer' },
+    { id: 'vaatwasser', name: 'Siemens vaatwasser', kind: 'dishwasher' },
   ],
   batteries: [
-    { id: 'bat1', name: 'Batterij 1', capacityKwh: 5.12 },
-    { id: 'bat2', name: 'Batterij 2', capacityKwh: 5.12 },
+    { id: 'bat1', name: 'Marstek 1', capacityKwh: 5.12 },
+    { id: 'bat2', name: 'Marstek 2', capacityKwh: 5.12 },
   ],
 };
 

@@ -140,7 +140,7 @@
             <div class="h-body">
               <span class="h-name">{app.nameOf(h.id)}</span>
               <span class="h-state">
-                {h.state === 'on' ? (h.kind === 'pellet' && h.level ? `Aan · stand ${h.level}` : 'Aan') : 'Uit'}
+                {h.state === 'on' ? (h.kind === 'pellet' && h.level ? `Aan · stand ${h.level}` : 'Aan') : h.state === 'starting' ? 'Ontsteken' : h.state === 'cooling' ? 'Afkoelen' : h.state === 'unknown' ? 'Niet gekoppeld' : 'Uit'}
                 {#if h.temp != null}· {temp(h.temp)}{/if}
               </span>
             </div>

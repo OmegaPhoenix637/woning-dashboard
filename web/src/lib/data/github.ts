@@ -101,6 +101,7 @@ export class GithubSource implements DataSource {
     const hit = this.yearCache.get(y);
     if (hit && (!isCurrent || Date.now() - hit.at < 10 * 60_000)) return this.withToday(hit.data);
     const data = (await this.get<YearSummary>(`summary/${y}.json`)) ?? { year: y, days: [] };
+    data.days.sort((a, b) => a.date.localeCompare(b.date));
     this.yearCache.set(y, { at: Date.now(), data });
     return this.withToday(data);
   }

@@ -9,3 +9,5 @@ secrets.h
 # Lokale namen en screenshots bevatten persoonlijke gegevens
 web/tools/local-names.json
 screenshots/
+firmware/.pio/
+firmware/.vscode/

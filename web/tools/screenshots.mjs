@@ -48,7 +48,7 @@ async function shoot(name, hash, { width, height, scale = 1, theme = 'dark', mob
   await page.waitForTimeout(2800);
   if (full && mobile) {
     // Volledige pagina: vaste balken op hun plek laten staan zoals op de telefoon
-    await page.addStyleTag({ content: '.shell{position:relative}.bottombar,.rail{position:absolute!important}' });
+    await page.addStyleTag({ content: '.shell{position:relative}.tabbar{position:absolute!important}' });
   }
   await page.screenshot({ path: path.join(out, name + '.png'), fullPage: full });
   await ctx.close();

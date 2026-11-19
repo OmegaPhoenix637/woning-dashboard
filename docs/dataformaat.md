@@ -39,7 +39,7 @@ Zo groeit de repo niet. `main` krijgt maar ~2 commits per dag.
 Modus-codes: `0 uit, 1 verwarmen, 2 koelen, 3 auto, 4 drogen, 5 ventileren`.
 Kamer-id's (7 airco's): `woonkamer, keuken, studio, slaap1, slaap2, slaap3, slaap4`.
 Verwarming: `pellet, eurom_slaap, eurom_bad`. Apparaten: `wasmachine, vaatwasser`. Batterijen: `bat1, bat2`.
-De echte namen staan alleen in de privé `settings.json` (`names`), niet in de openbare code.
+Standaardnamen staan in de code (zoals in de apps); eigen namen in `settings.json` (`names`) gaan voor.
 
 ## Dagtotalen (`DayTotals`)
 
