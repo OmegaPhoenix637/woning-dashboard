@@ -4,9 +4,9 @@
 
 // Actuele waarden van alle bronnen (wordt elke 5 min als live.json geüpload).
 
-enum SrcId { S_P1, S_SMA, S_BAT1, S_BAT2, S_ONECTA, S_HC, S_AGUA, S_EUROM, S_WEATHER, S_EV, S_GITHUB, N_SRC };
+enum SrcId { S_P1, S_SMA, S_BAT1, S_BAT2, S_ONECTA, S_HC, S_AGUA, S_EUROM, S_WEATHER, S_GITHUB, N_SRC };
 static const char* const SRC_KEYS[N_SRC] = {"p1", "sma", "bat1", "bat2", "onecta", "homeconnect",
-                                            "aguaiot", "eurom", "weather", "ev", "github"};
+                                            "aguaiot", "eurom", "weather", "github"};
 
 struct SrcHealth {
   bool enabled = false;
@@ -33,11 +33,6 @@ struct LiveState {
   float batW[N_BAT] = {NAN, NAN};
   double batChgKwh[N_BAT] = {NAN, NAN};  // tellers (als het apparaat ze geeft)
   double batDisKwh[N_BAT] = {NAN, NAN};
-  // Laadpaal
-  float evW = NAN;
-  double evTotalKwh = NAN;
-  double evSessionStart = NAN;
-  uint8_t evState = 0;  // 0 idle, 1 charging, 2 done
   // Airco's
   struct Ac {
     bool seen = false;

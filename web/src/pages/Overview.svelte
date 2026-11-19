@@ -17,8 +17,6 @@
     PiggyBank,
     ChevronRight,
     Info,
-    PlugZap,
-    Car,
   } from 'lucide';
   import Icon from '../lib/components/Icon.svelte';
   import EnergyScene from '../lib/components/EnergyScene.svelte';
@@ -140,11 +138,10 @@
       <div class="card-head">
         <h2 class="card-title"><span class="ico" style="--accent: var(--g-house)"><Icon icon={Zap} size={18} /></span>Nu in huis</h2>
         <div class="head-right">
-          {#if live.ev?.state === 'charging'}<span class="pill ev-pill"><Icon icon={PlugZap} size={14} />Auto laadt</span>{/if}
           <Explain label="Hoe lees ik dit?">
             <p>De <b>lichtpuntjes</b> laten zien waar de stroom op dit moment naartoe gaat. Hoe sneller ze bewegen, hoe meer stroom.</p>
-            <p><b>Zon → huis:</b> de zonnepanelen leveren stroom. <b>Net:</b> stroom van of naar het elektriciteitsnet (teruglevering gaat van het huis naar het net). <b>Batterijen:</b> laden (stroom gaat erin) of ontladen (stroom gaat naar het huis); de ring om het rondje laat zien hoe vol ze zijn. <b>Laadpaal:</b> licht op als er een auto laadt.</p>
-            <p>Het getal onder het huis is wat het huis op dit moment verbruikt (zonder de auto). Alles ververst vanzelf elke paar minuten.</p>
+            <p><b>Zon → huis:</b> de zonnepanelen leveren stroom. <b>Net:</b> stroom van of naar het elektriciteitsnet (teruglevering gaat van het huis naar het net). <b>Batterijen:</b> laden (stroom gaat erin) of ontladen (stroom gaat naar het huis); de ring om het rondje laat zien hoe vol ze zijn. </p>
+            <p>Het getal bij het huis is wat het huis op dit moment verbruikt. Alles ververst vanzelf elke paar minuten.</p>
           </Explain>
         </div>
       </div>
@@ -153,7 +150,6 @@
         gridW={live.grid.w}
         houseW={house}
         batteries={live.batteries}
-        ev={live.ev}
         night={nightNow}
       />
     </section>
@@ -205,7 +201,7 @@
         <StatTile i={5} label="Teruggeleverd" value={tot.exportKwh} format={n1} unit="kWh" icon={ArrowUpFromLine} accent="var(--g-grid)" href={href('energie')} />
         <StatTile i={6} label="Zelfvoorzienend" value={selfSufficiency(tot) * 100} format={n0} unit="%" icon={Leaf} accent="var(--g-money)" sub="eigen stroom" href={href('energie')} />
         <StatTile i={7} label="Batterijen" value={avgSoc} format={n0} unit="%" icon={BatteryMedium} accent="var(--g-battery)" sub={`${n1(tot.batDischargeKwh)} kWh ontladen`} href={href('batterijen')} />
-        <StatTile i={8} label="Auto geladen" value={tot.evKwh ?? 0} format={n1} unit="kWh" icon={Car} accent="var(--g-cool)" sub={live.ev?.state === 'charging' ? `laadt nu · ${power(live.ev.w)}` : 'laadpaal vrij'} href={href('energie')} />
+        <StatTile i={8} label="Airco's vandaag" value={Object.values(tot.climateKwh).reduce((a, b) => a + b, 0)} format={n1} unit="kWh" icon={Snowflake} accent="var(--g-cool)" sub="7 airco's samen" href={href('klimaat')} />
         <StatTile i={9} label="Gas (back-up)" value={tot.gasM3 ?? 0} format={n2} unit="m³" icon={Flame} accent="var(--g-heat)" sub={(tot.gasM3 ?? 0) > 0 ? 'vandaag gebruikt' : 'niet nodig vandaag'} href={href('energie')} />
       </section>
     {/if}
@@ -325,10 +321,7 @@
   .scene-card .card-head {
     padding: 2px 4px 0;
   }
-  .ev-pill {
-    color: var(--g-cool);
-    border-color: color-mix(in srgb, var(--g-cool) 40%, transparent);
-  }
+
   .money {
     display: grid;
     gap: 18px;

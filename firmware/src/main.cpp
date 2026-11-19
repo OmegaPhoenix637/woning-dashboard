@@ -1,5 +1,5 @@
 // Mijn Woning – ESP32-WROOM-32 datalogger (alleen lezen, stuurt niets aan).
-// Leest P1, SMA, Marstek, laadpaal, Daikin, Home Connect, Nordic Fire, Eurom en weer uit,
+// Leest P1, SMA, Marstek, Daikin, Home Connect, Nordic Fire, Eurom en weer uit,
 // maakt 5-minutenwaarden en zet die op GitHub voor de website.
 #include <Arduino.h>
 #include <ESPmDNS.h>
@@ -24,7 +24,6 @@ struct Task {
 
 static Task tasks[] = {
     {"p1", pollP1, IV_P1, 0},
-    {"ev", pollEv, IV_EV, 0},
     {"sma", pollSma, IV_SMA, 0},
     {"bat", pollBatteries, IV_BAT, 0},
     {"weer", pollWeather, IV_WEATHER, 0},

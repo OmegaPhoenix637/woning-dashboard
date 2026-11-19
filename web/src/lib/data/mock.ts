@@ -57,7 +57,6 @@ interface CarryState {
 interface SimResult {
   day: DayData;
   end: CarryState;
-  ev: { start: number; end: number; w: number; car: string; kwh: number } | null;
 }
 
 const WASH_PROGRAMS = ['Katoen 40°', 'Synthetisch 30°', 'Eco 40-60', 'Katoen 60°', 'Fijne was 30°'];
@@ -129,22 +128,12 @@ function simulateDay(date: string, carry: CarryState, limitSteps?: number): SimR
     runs.push({ id: 'vaatwasser', start: Math.round(st * 60), end: Math.round(st * 60 + dur), program: DISH_PROGRAMS[Math.floor(r() * DISH_PROGRAMS.length)] });
   }
 
-  // Laadpaal: 2 auto's, 1 laadpaal. Doordeweeks 's avonds, op zonnige weekenddagen overdag op zonnestroom.
-  let ev: { start: number; end: number; w: number; car: string } | null = null;
-  if (r() < (weekend ? 0.45 : 0.6)) {
-    const car = r() < 0.55 ? 'Auto 1' : 'Auto 2';
-    const kwhNeed = 8 + r() * 22;
-    const solarCharge = weekend && cloudDay < 0.45;
-    const w = solarCharge ? 3700 : r() < 0.5 ? 11000 : 7400;
-    const st = solarCharge ? 10.5 + r() : 17.5 + r() * 2;
-    ev = { start: st, end: Math.min(23.9, st + kwhNeed / (w / 1000)), w, car };
-  }
   // Gas: alleen als back-up op hele koude dagen
   const gasDay = tAvg < 2 ? (2 - tAvg) * 0.9 + r() * 0.6 : r() < 0.04 ? r() * 0.3 : 0;
 
   const ch: Record<string, (number | null)[]> = {};
   const mk = (k: string) => (ch[k] = new Array(n).fill(null));
-  ['grid_w', 'grid_max', 'solar_w', 'bat1_w', 'bat2_w', 'bat1_soc', 'bat2_soc', 't_out', 'cloud', 'ev_w'].forEach(mk);
+  ['grid_w', 'grid_max', 'solar_w', 'bat1_w', 'bat2_w', 'bat1_soc', 'bat2_soc', 't_out', 'cloud'].forEach(mk);
   for (const rm of ROOMS) ['_t', '_set', '_mode'].forEach((s) => mk('ac_' + rm.id + s));
   ['pellet_t', 'pellet_on', 'eurom_slaap_on', 'eurom_bad_on', 'eurom_slaap_t', 'eurom_bad_t'].forEach(mk);
 
@@ -160,8 +149,7 @@ function simulateDay(date: string, carry: CarryState, limitSteps?: number): SimR
     chg = 0,
     dis = 0,
     peakI = 0,
-    peakE = 0,
-    evE = 0;
+    peakE = 0;
   let tMin = Infinity,
     tMax = -Infinity,
     tSum = 0,
@@ -198,12 +186,6 @@ function simulateDay(date: string, carry: CarryState, limitSteps?: number): SimR
         else load += f < 0.12 || (f > 0.62 && f < 0.72) ? 2050 : 75;
       }
     }
-
-    // Laadpaal
-    const evW = ev && h >= ev.start && h < ev.end ? ev.w * (0.97 + r() * 0.03) : 0;
-    load += evW;
-    ch.ev_w[i] = Math.round(evW);
-    evE += (evW * STEP) / 3600 / 1000;
 
     // Pelletkachel (elektrisch: ontsteking 300 W, daarna ~90 W)
     let pLevel = 0;
@@ -327,7 +309,7 @@ function simulateDay(date: string, carry: CarryState, limitSteps?: number): SimR
     batChargeKwh: chg,
     batDischargeKwh: dis,
     gasM3: Math.round(gasDay * (last / n) * 100) / 100,
-    evKwh: Math.round(evE * 100) / 100,
+    evKwh: null,
     peakImportW: Math.round(peakI),
     peakExportW: Math.round(peakE),
     tOutMin: cnt ? r1(tMin) : null,
@@ -348,9 +330,8 @@ function simulateDay(date: string, carry: CarryState, limitSteps?: number): SimR
       meterExport: carry.meterExport + exp,
       meterSolar: carry.meterSolar + sol,
       meterGas: carry.meterGas + gasDay * (last / n),
-      evCar: ev?.car ?? carry.evCar,
+      evCar: carry.evCar,
     },
-    ev: ev ? { ...ev, kwh: evE } : null,
   };
 }
 
@@ -445,7 +426,7 @@ export class DemoSource implements DataSource {
   }
 
   async live(): Promise<LiveData> {
-    const { day, end, ev } = this.world.today();
+    const { day, end } = this.world.today();
     const now = Date.now() / 1000;
     const jit = (v: number, a: number) => v + (Math.random() - 0.5) * a;
     const nowMin = (now - day.start) / 60;
@@ -480,14 +461,7 @@ export class DemoSource implements DataSource {
           { id: 'sma2', name: 'SMA SB4.0', w: Math.round((liveSolar * 4) / 7) },
         ],
       },
-      ev: (() => {
-        const h = nowMin / 60;
-        const evW = lastVal(day.ch.ev_w) ?? 0;
-        if (ev && h >= ev.start && h < ev.end && evW > 0)
-          return { state: 'charging' as const, w: Math.round(jit(evW, 80)), sessionKwh: ev.kwh, kwhToday: ev.kwh, car: ev.car };
-        if (ev && h >= ev.end && h < ev.end + 10) return { state: 'done' as const, w: 0, sessionKwh: ev.kwh, kwhToday: ev.kwh, car: ev.car };
-        return { state: 'idle' as const, w: 0, sessionKwh: null, kwhToday: day.totals.evKwh ?? 0, car: null };
-      })(),
+      ev: null,
       batteries: DEVICES.batteries.map((b, i) => ({
         id: b.id,
         name: b.name,
@@ -564,7 +538,6 @@ export class DemoSource implements DataSource {
           aguaiot: { ok: true, last: Math.floor(now - 170) },
           eurom: { ok: true, last: Math.floor(now - 200) },
           weather: { ok: true, last: Math.floor(now - 1500) },
-          ev: { ok: true, last: Math.floor(now - 30) },
           github: { ok: true, last: Math.floor(now - 20) },
         },
         rssi: -61,

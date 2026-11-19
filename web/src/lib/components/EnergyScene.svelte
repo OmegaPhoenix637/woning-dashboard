@@ -1,25 +1,23 @@
 <script lang="ts">
   // Strakke, minimalistische energiescène: het huis als lijntekening (naar de echte woning),
-  // met zon, net, batterijen en laadpaal eromheen. Energie stroomt als lichtpuntjes over dunne lijnen.
-  import { Sun, Moon, UtilityPole, Car, PlugZap } from 'lucide';
+  // met zon, net en batterijen eromheen. Energie stroomt als lichtpuntjes over dunne lijnen.
+  import { Sun, Moon, UtilityPole } from 'lucide';
   import Icon from './Icon.svelte';
   import AnimatedNumber from './AnimatedNumber.svelte';
   import { powerParts, n0 } from '../format';
-  import type { Battery, EvCharger } from '../types';
+  import type { Battery } from '../types';
 
   let {
     solarW,
     gridW,
     houseW,
     batteries,
-    ev = null,
     night = false,
   }: {
     solarW: number;
     gridW: number;
     houseW: number;
     batteries: Battery[];
-    ev?: EvCharger | null;
     night?: boolean;
   } = $props();
 
@@ -34,8 +32,8 @@
           W: 400,
           H: 610,
           house: { x: 114, y: 196, s: 0.76 },
-          houseLabel: [200, 388],
-          nodes: { sun: [80, 128], bat: [318, 128], grid: [80, 482], ev: [318, 482] },
+          houseLabel: [256, 402],
+          nodes: { sun: [80, 128], bat: [318, 128], grid: [80, 482] },
           r: 44,
         }
       : {
@@ -43,7 +41,7 @@
           H: 470,
           house: { x: 380, y: 92, s: 1.08 },
           houseLabel: [500, 378],
-          nodes: { sun: [170, 112], bat: [830, 112], grid: [170, 330], ev: [830, 330] },
+          nodes: { sun: [170, 112], bat: [830, 196], grid: [170, 330] },
           r: 46,
         },
   );
@@ -63,7 +61,6 @@
     return `M${sx} ${ny} C ${mx} ${ny}, ${mx} ${ey}, ${ex} ${ey}`;
   }
 
-  const evW = $derived(ev?.state === 'charging' ? ev.w : 0);
   const batW = $derived(batteries.reduce((a, b) => a + b.w, 0));
   const batSoc = $derived(
     batteries.reduce((a, b) => a + b.soc * b.capacityKwh, 0) / Math.max(0.01, batteries.reduce((a, b) => a + b.capacityKwh, 0)),
@@ -73,8 +70,7 @@
   const flows = $derived([
     { id: 'sun', d: link(L.nodes.sun, H(tall ? 10 : 6, 77)), w: solarW, c: 'solar', rev: false },
     { id: 'grid', d: link(L.nodes.grid, H(0, 214)), w: gridW, c: 'grid', rev: gridW < 0 },
-    { id: 'bat', d: link(L.nodes.bat, H(210, tall ? 118 : 128)), w: batW, c: 'battery', rev: batW > 0 },
-    { id: 'ev', d: link(L.nodes.ev, H(210, 204)), w: evW, c: 'cool', rev: true },
+    { id: 'bat', d: link(L.nodes.bat, H(210, tall ? 118 : 150)), w: batW, c: 'battery', rev: batW > 0 },
   ]);
 
   const motionOk =
@@ -106,7 +102,7 @@
       <mask id="es-fade" maskUnits="userSpaceOnUse" x="-100" y="0" width="100" height="250">
         <rect x="-100" y="0" width="100" height="250" fill="url(#es-fade-g)" />
       </mask>
-      {#each ['solar', 'grid', 'battery', 'cool'] as c (c)}
+      {#each ['solar', 'grid', 'battery'] as c (c)}
         <radialGradient id="es-dot-{c}">
           <stop offset="0" style="stop-color: var(--g-{c})" stop-opacity="0.9" />
           <stop offset="0.4" style="stop-color: var(--g-{c})" stop-opacity="0.35" />
@@ -249,17 +245,6 @@
       </span>
       <span class="val">
         {#if Math.abs(batW) <= TH}<em>rust</em>{:else}<AnimatedNumber value={Math.abs(batW)} format={(v) => P(v)[0]} /><small>{P(batW)[1]} {batW > 0 ? 'laden' : 'ontladen'}</small>{/if}
-      </span>
-    </div>
-  </div>
-
-  <div class="node" style="{pos(L.nodes.ev)}; --c: var(--g-cool)" class:on={evW > TH}>
-    <div class="orb"><Icon icon={evW > TH ? PlugZap : Car} size={26} stroke={1.75} /></div>
-    <div class="cap">
-      <span class="name">{evW > TH && ev?.car ? ev.car : 'Laadpaal'}</span>
-      <span class="val">
-        {#if evW > TH}<AnimatedNumber value={evW} format={(v) => P(v)[0]} /><small>{P(evW)[1]} laden</small>
-        {:else if ev?.state === 'done'}<em>klaar</em>{:else}<em>vrij</em>{/if}
       </span>
     </div>
   </div>

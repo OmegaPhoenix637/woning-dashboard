@@ -50,8 +50,67 @@ input[type=checkbox]{width:auto;height:auto}small{display:block;color:#86868b;fo
 .btn.p{background:#3d8ef0}.row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 table{width:100%;border-collapse:collapse;font-size:14px}td{padding:7px 4px;border-bottom:1px solid #2c2c2e}td:last-child{text-align:right;color:#a1a1a6}
 .ok{color:#3ccf5e}.bad{color:#ec835a}.note{background:#2c2c2e;border-radius:14px;padding:12px;margin-top:10px}
-code{background:#0b0b0d;padding:2px 6px;border-radius:6px}
+code{background:#0b0b0d;padding:2px 6px;border-radius:6px;word-break:break-all}
+details{background:#2c2c2e;border-radius:14px;padding:10px 14px;margin:0 0 6px}summary{cursor:pointer;font-weight:600;color:#74b3ff}
+.help{color:#c7c7cc;font-size:14.5px}.help ol,.steps{padding-left:20px;margin:8px 0}.help li,.steps li{margin:5px 0}a{color:#74b3ff}
 )CSS";
+
+
+// Uitleg per onderdeel (uitklapbaar op de instelpagina). Zie ook docs/firmware.md.
+static const char* groupHelp(const String& g) {
+  if (g.startsWith("Wifi"))
+    return "<ol><li>Vul de naam en het wachtwoord van jullie wifi in. Alleen <b>2,4 GHz</b> werkt.</li>"
+           "<li>Klik onderaan op <b>Opslaan</b> en daarna bovenaan op <b>Herstarten</b>.</li>"
+           "<li>Verbind weer met je eigen wifi en open <b>http://energie.local</b> (of het IP-adres uit de router).</li>"
+           "<li>Optioneel: een wachtwoord voor deze pagina (gebruikersnaam is dan <code>admin</code>).</li></ol>";
+  if (g.startsWith("GitHub"))
+    return "<ol><li>github.com &rarr; profielfoto &rarr; <b>Settings</b> &rarr; <b>Developer settings</b> &rarr; <b>Fine-grained tokens</b> &rarr; <b>Generate new token</b>.</li>"
+           "<li>Naam <code>ESP32 woning</code>, verloopt over 1 jaar.</li>"
+           "<li>Repository access: <b>Only select repositories</b> &rarr; <b>woning-data</b>.</li>"
+           "<li>Permissions &rarr; <b>Contents</b> &rarr; <b>Read and write</b> &rarr; <b>Generate token</b>.</li>"
+           "<li>Kopieer de code (begint met <code>github_pat_</code>), plak hem hieronder, <b>Opslaan</b>, daarna bovenaan <b>Nu uploaden</b>.</li></ol>";
+  if (g.startsWith("HomeWizard"))
+    return "<ol><li>HomeWizard Energy-app &rarr; <b>Instellingen</b> &rarr; <b>Meters</b> &rarr; P1-meter &rarr; <b>Lokale API</b> aan.</li>"
+           "<li>Zoek het IP-adres van de P1-meter in je router (en zet hem op een vast IP).</li>"
+           "<li>Vul het IP-adres in en klik <b>Opslaan</b>.</li></ol>"
+           "<p>De P1 geeft alleen net en gas. De zonnestroom in de HomeWizard-app komt uit de SMA-cloud; die leest de ESP hieronder zelf uit.</p>";
+  if (g.startsWith("Zonnepanelen"))
+    return "<p><b>Kies 0</b> (geen installateur nodig):</p><ol>"
+           "<li>Open op een laptop <code>https://&lt;IP van de SB3.0&gt;</code> &rarr; bij de waarschuwing <b>Geavanceerd</b> &rarr; <b>Doorgaan</b>.</li>"
+           "<li>Gebruikersgroep <b>Gebruiker</b> (niet Installateur), wachtwoord invullen. Zie je het vermogen? Dan werkt het wachtwoord.</li>"
+           "<li>Wachtwoord onbekend? Vraag Natuma om het wachtwoord van groep <b>Gebruiker</b>, of gebruik <b>Wachtwoord vergeten</b> met de PUK/DEV KEY van de sticker op de omvormer.</li>"
+           "<li>Hieronder: <i>Hoe uitlezen</i> = 0, beide IP-adressen en het wachtwoord invullen, <b>Opslaan</b>.</li></ol>"
+           "<p>Keuze 2 (SMA-cloud): account op developer.sma.de, app met dezelfde redirect-URI als Daikin, dan bovenaan <b>Inloggen bij SMA</b>.</p>";
+  if (g.startsWith("Batterijen"))
+    return "<ol><li>Vul de IP-adressen van beide Marstek-batterijen in (uit de router) en klik <b>Opslaan</b>.</li>"
+           "<li>Geen vinkje bij bat1/bat2? Zet in de Marstek-app de <b>Open API</b> aan en kies hier verbinding <b>1</b> en poort <b>30000</b>.</li>"
+           "<li>Vergelijk 2 dagen met de Marstek-app. Laden/ontladen omgedraaid? Vink <b>Teken vermogen omdraaien</b> aan.</li></ol>";
+  if (g.startsWith("Daikin"))
+    return "<ol><li>Ga naar <b>developer.cloud.daikineurope.com</b>, log in met het Onecta-account &rarr; <b>Apps</b> &rarr; <b>Create app</b>.</li>"
+           "<li>Redirect URI precies: <code>https://omegaphoenix637.github.io/woning-dashboard/oauth.html</code></li>"
+           "<li>Kopieer <b>Client ID</b> en <b>Client secret</b> naar hieronder &rarr; <b>Opslaan</b>.</li>"
+           "<li>Bovenaan bij <i>Koppelen</i>: <b>Inloggen bij Daikin</b> &rarr; inloggen &rarr; toestaan &rarr; op de pagina met de code <b>Kopi&euml;ren</b>.</li>"
+           "<li>Plak de code bij <b>Plak de koppelcode</b> &rarr; <b>Koppelen</b> (binnen een paar minuten).</li>"
+           "<li>De namen hieronder moeten precies zo heten als in de Onecta-app.</li></ol>";
+  if (g.startsWith("Home Connect"))
+    return "<ol><li>Ga naar <b>developer.home-connect.com</b> (zelfde e-mail als de Home Connect-app) &rarr; <b>Applications</b> &rarr; <b>Register Application</b>.</li>"
+           "<li>Application ID <code>mijn-woning</code>, OAuth Flow <b>Device Flow</b> &rarr; <b>Save</b>.</li>"
+           "<li>Kopieer de <b>Client ID</b> naar hieronder &rarr; <b>Opslaan</b>.</li>"
+           "<li>Bovenaan: <b>Koppel Home Connect</b> &rarr; <b>Open Home Connect</b> &rarr; inloggen &rarr; code bevestigen &rarr; <b>Approve</b>.</li></ol>";
+  if (g.startsWith("Nordic"))
+    return "<ol><li>Vul e-mail en wachtwoord van de <b>Nordic Fire 2.0</b>-app in.</li>"
+           "<li>Customer code en brand id: zoek de Home Assistant-integratie <b>Micronova Agua IOT</b>; daarin staat per merk (Nordic Fire 2.0) de customer code en brand id.</li>"
+           "<li><b>Opslaan</b>. Experimenteel: geef de foutmelding door als het niet lukt.</li></ol>";
+  if (g.startsWith("Eurom"))
+    return "<ol><li>Werkt de Eurom-kachel ook in de <b>Smart Life</b>-app? Zo niet: sla dit over.</li>"
+           "<li><b>iot.tuya.com</b> &rarr; Cloud &rarr; <b>Create Cloud Project</b> (datacenter Central Europe).</li>"
+           "<li>Devices &rarr; <b>Link App Account</b> &rarr; QR-code scannen met Smart Life.</li>"
+           "<li>Kopieer <b>Access ID</b>, <b>Access Secret</b> en de twee <b>Device ID</b>s naar hieronder &rarr; <b>Opslaan</b>.</li></ol>";
+  if (g.startsWith("Weer"))
+    return "<ol><li>Google Maps &rarr; rechtermuisklik op het huis &rarr; klik op de co&ouml;rdinaten (gekopieerd).</li>"
+           "<li>Eerste getal = breedtegraad, tweede = lengtegraad. 2 decimalen is genoeg &rarr; <b>Opslaan</b>.</li></ol>";
+  return "";
+}
 
 static void sendPage(const String& title, const String& body) {
   String h;
@@ -71,6 +130,18 @@ static void handleRoot() {
   String b;
   b += F("<h1>Mijn Woning · ESP32</h1><p class=sub>Instellingen van de datalogger. Alleen lezen: er wordt niets aangestuurd.</p>");
   if (server.hasArg("saved")) b += F("<div class=note>✓ Opgeslagen. Wifi-wijzigingen werken na een herstart.</div>");
+  b += F("<section><h2>Stappenplan</h2><ol class=steps>"
+         "<li><a href='#s0'>Wifi</a> instellen en herstarten</li>"
+         "<li>In de router alle apparaten een <b>vast IP-adres</b> geven en de IP-adressen noteren</li>"
+         "<li><a href='#s1'>GitHub-token</a> invullen, daarna bovenaan <b>Nu uploaden</b></li>"
+         "<li><a href='#s2'>HomeWizard P1</a></li>"
+         "<li><a href='#s3'>Zonnepanelen (SMA)</a></li>"
+         "<li><a href='#s4'>Batterijen (Marstek)</a></li>"
+         "<li><a href='#s5'>Daikin</a> en <a href='#s6'>Home Connect</a>, daarna koppelen (hieronder)</li>"
+         "<li><a href='#s7'>Nordic Fire</a> en <a href='#s8'>Eurom</a> (experimenteel)</li>"
+         "<li><a href='#s9'>Weer</a></li>"
+         "<li>Op de website: Instellingen &rarr; Koppeling (met een tweede GitHub-token)</li></ol>"
+         "<p class=sub style='margin:8px 0 0'>Bij elk onderdeel staat <b>Hoe doe ik dit?</b>. Bij <b>Status</b> zie je per onderdeel of het werkt.</p></section>");
   b += F("<section><h2>Status</h2><table id=st><tr><td>Laden…</td></tr></table><div class=row>"
          "<form method=post action=/upload><button class=btn>Nu uploaden</button></form>"
          "<form method=post action=/restart><button class=btn>Herstarten</button></form>"
@@ -81,17 +152,24 @@ static void handleRoot() {
          "<div class=row><a class='btn p' href=/onecta/login target=_blank>1. Inloggen bij Daikin</a></div>"
          "<form method=post action=/onecta/code><label>2. Plak de koppelcode</label><input name=code required>"
          "<button class='btn p'>Koppelen</button></form>"
+         "<p style='margin-top:18px'><b>SMA-cloud</b> (alleen bij keuze 2): Client ID en secret invullen en opslaan. Daarna:</p>"
+         "<div class=row><a class='btn p' href=/sma/login target=_blank>1. Inloggen bij SMA</a></div>"
+         "<form method=post action=/sma/code><label>2. Plak de koppelcode</label><input name=code required>"
+         "<button class='btn p'>Koppelen</button></form>"
          "<p style='margin-top:18px'><b>Home Connect</b> (Bosch/Siemens): vul de Client ID in en sla op. Daarna:</p>"
          "<form method=post action=/hc/start><button class='btn p'>Koppel Home Connect</button></form></section>");
   // Formulier
   b += F("<form method=post action=/save>");
   String group;
+  int gi = 0;
   for (size_t i = 0; i < N_FIELDS; i++) {
     const FieldDef& f = FIELDS[i];
     if (group != f.group) {
       if (group.length()) b += F("</section>");
       group = f.group;
-      b += "<section><h2>" + esc(group) + "</h2>";
+      b += "<section id='s" + String(gi++) + "'><h2>" + esc(group) + "</h2>";
+      const char* h = groupHelp(group);
+      if (h[0]) b += String("<details><summary>Hoe doe ik dit?</summary><div class=help>") + h + "</div></details>";
     }
     String v = cfg(f.key);
     b += "<label for='" + String(f.key) + "'>" + esc(f.label) + "</label>";
@@ -179,6 +257,18 @@ void portalBegin() {
     sendPage("Daikin", ok ? "<h1>✓ Daikin gekoppeld</h1><p class=sub>De airco's verschijnen binnen 10 minuten.</p><a class=btn href=/>Terug</a>"
                           : "<h1>Koppelen mislukt</h1><p class=sub>" + esc(err) +
                                 "</p><p>De code is maar kort geldig: log opnieuw in en plak de nieuwe code direct.</p><a class=btn href=/>Terug</a>");
+  });
+  server.on("/sma/login", HTTP_GET, []() {
+    if (!auth()) return;
+    server.sendHeader("Location", smaCloudAuthUrl());
+    server.send(302);
+  });
+  server.on("/sma/code", HTTP_POST, []() {
+    if (!auth()) return;
+    String err;
+    bool ok = smaCloudExchangeCode(server.arg("code"), err);
+    sendPage("SMA", ok ? "<h1>✓ SMA-cloud gekoppeld</h1><p class=sub>De opbrengst verschijnt binnen 5 minuten.</p><a class=btn href=/>Terug</a>"
+                       : "<h1>Koppelen mislukt</h1><p class=sub>" + esc(err) + "</p><a class=btn href=/>Terug</a>");
   });
   server.on("/hc/start", HTTP_POST, []() {
     if (!auth()) return;

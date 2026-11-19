@@ -58,17 +58,7 @@ void writeLiveJson(Print& out) {
     b["capacityKwh"] = BAT_CAPACITY_KWH;
   }
 
-  if (cfgHas("ev_ip")) {
-    JsonObject e = d["ev"].to<JsonObject>();
-    e["state"] = live.evState == 1 ? "charging" : live.evState == 2 ? "done" : "idle";
-    num(e["w"], live.evW, 0);
-    double session = (!isnan(live.evTotalKwh) && !isnan(live.evSessionStart)) ? live.evTotalKwh - live.evSessionStart : NAN;
-    num(e["sessionKwh"], session, 2);
-    num(e["kwhToday"], samplerEvKwhToday(), 2);
-    e["car"] = nullptr;
-  } else {
-    d["ev"] = nullptr;
-  }
+  d["ev"] = nullptr;  // geen laadpaal
 
   JsonArray cl = d["climate"].to<JsonArray>();
   for (int i = 0; i < N_CLIMATE; i++) {

@@ -18,7 +18,7 @@
 #define IV_P1 10000UL
 #define IV_SMA 30000UL
 #define IV_BAT 30000UL
-#define IV_EV 15000UL
+#define IV_SMA_CLOUD 300000UL  // SMA-cloud: elke 5 min
 #define IV_ONECTA 600000UL     // 144 calls/dag (limiet Daikin: 200)
 #define IV_HC_IDLE 900000UL    // Home Connect zonder lopend programma
 #define IV_HC_RUN 300000UL     // Home Connect als er iets draait
@@ -57,7 +57,7 @@ static const float BAT_CAPACITY_KWH = 5.12f;
 // ---- Kanalen in de dagbestanden (5-min) ----
 enum Agg : uint8_t { AGG_AVG, AGG_MAX, AGG_LAST };
 enum ChIdx {
-  CH_GRID_W, CH_GRID_MAX, CH_SOLAR_W, CH_BAT1_W, CH_BAT2_W, CH_BAT1_SOC, CH_BAT2_SOC, CH_T_OUT, CH_CLOUD, CH_EV_W,
+  CH_GRID_W, CH_GRID_MAX, CH_SOLAR_W, CH_BAT1_W, CH_BAT2_W, CH_BAT1_SOC, CH_BAT2_SOC, CH_T_OUT, CH_CLOUD,
   CH_AC_BASE,  // per airco: _t, _set, _mode
   CH_PELLET_T = CH_AC_BASE + N_CLIMATE * 3,
   CH_PELLET_ON,

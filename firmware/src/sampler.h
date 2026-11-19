@@ -22,4 +22,3 @@ bool writePendingDayJson(const String& date, Print& out);
 void writeSummaryJson(int year, Print& out);
 void pendingDone(const String& date);
 String todayDate();
-double samplerEvKwhToday();

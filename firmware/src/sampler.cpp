@@ -40,7 +40,7 @@ struct Meta {
 };
 static Meta M;
 // Indexen van de tellers in c0/c1
-enum { K_IMP, K_EXP, K_SOLAR, K_GAS, K_EV, K_CHG1, K_CHG2, K_DIS1, K_DIS2, N_K };
+enum { K_IMP, K_EXP, K_SOLAR, K_GAS, K_CHG1, K_CHG2, K_DIS1, K_DIS2, N_K };
 
 static double counterNow(int k) {
   switch (k) {
@@ -48,7 +48,6 @@ static double counterNow(int k) {
     case K_EXP: return live.exportKwh;
     case K_SOLAR: return live.solarTotalKwh;
     case K_GAS: return live.gasM3;
-    case K_EV: return live.evTotalKwh;
     case K_CHG1: return live.batChgKwh[0];
     case K_CHG2: return live.batChgKwh[1];
     case K_DIS1: return live.batDisKwh[0];
@@ -59,7 +58,7 @@ static double counterNow(int k) {
 
 // ---------- Kanaaleigenschappen ----------
 static const char* const BASE_NAMES[] = {"grid_w", "grid_max", "solar_w", "bat1_w", "bat2_w",
-                                         "bat1_soc", "bat2_soc", "t_out", "cloud", "ev_w"};
+                                         "bat1_soc", "bat2_soc", "t_out", "cloud"};
 
 const char* chName(int ch, char* buf, size_t len) {
   if (ch < CH_AC_BASE) return BASE_NAMES[ch];
@@ -73,7 +72,7 @@ const char* chName(int ch, char* buf, size_t len) {
 }
 
 static bool isPower(int ch) {
-  return ch == CH_GRID_W || ch == CH_GRID_MAX || ch == CH_SOLAR_W || ch == CH_BAT1_W || ch == CH_BAT2_W || ch == CH_EV_W;
+  return ch == CH_GRID_W || ch == CH_GRID_MAX || ch == CH_SOLAR_W || ch == CH_BAT1_W || ch == CH_BAT2_W;
 }
 static uint8_t chScale(int ch) {
   if (isPower(ch) || ch == CH_CLOUD || ch == CH_PELLET_ON || ch == CH_EUROM_SLAAP_ON || ch == CH_EUROM_BAD_ON) return 1;
@@ -125,11 +124,6 @@ static uint32_t midnightOf(time_t t) {
   return (uint32_t)mktime(&tm);
 }
 String todayDate() { return String(M.date); }
-static double diffK(int k);
-double samplerEvKwhToday() {
-  double c = counterNow(K_EV), a = M.c0[K_EV];
-  return (!isnan(c) && !isnan(a) && c >= a) ? c - a : NAN;
-}
 
 // ---------- Opslag ----------
 static void saveMeta() {
@@ -282,12 +276,7 @@ static void buildTotals(JsonDocument& t, bool final) {
   double gas = diffK(K_GAS);
   if (isnan(gas)) t["gasM3"] = nullptr;
   else t["gasM3"] = r3(gas);
-  if (cfgHas("ev_ip")) {
-    double ev = diffK(K_EV);
-    t["evKwh"] = r3(isnan(ev) ? integ(CH_EV_W, 1) : ev);
-  } else {
-    t["evKwh"] = nullptr;
-  }
+  t["evKwh"] = nullptr;
   t["peakImportW"] = (int)M.peakImport;
   t["peakExportW"] = (int)M.peakExport;
   // Buitentemperatuur en bewolking

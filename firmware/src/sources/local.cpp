@@ -1,4 +1,4 @@
-// Lokale bronnen: HomeWizard P1, HomeWizard kWh-meter (laadpaal), SMA (Modbus TCP), Marstek (Modbus TCP / Open API).
+// Lokale bronnen: HomeWizard P1 en Marstek (Modbus TCP / Open API). SMA staat in sma.cpp.
 #include <WiFi.h>
 #include <WiFiUdp.h>
 #include "../net.h"
@@ -28,71 +28,6 @@ void pollP1() {
   samplerAdd(CH_GRID_W, live.gridW);
   samplerAdd(CH_GRID_MAX, live.gridW);
   markOk(S_P1);
-}
-
-// ---------------- Laadpaal via HomeWizard kWh-meter ----------------
-void pollEv() {
-  String ip = cfg("ev_ip");
-  if (!ip.length()) return;
-  JsonDocument doc;
-  String err;
-  int code = httpJson("GET", "http://" + ip + "/api/v1/data", "", doc, nullptr, {}, &err, 5000);
-  if (code != 200) return markErr(S_EV, err);
-  float w = fnum(doc["active_power_w"]);
-  if (!isnan(w) && w < 0) w = 0;
-  live.evW = w;
-  live.evTotalKwh = doc["total_power_import_kwh"] | NAN;
-  bool charging = !isnan(w) && w > 500;
-  if (charging && live.evState != 1) live.evSessionStart = live.evTotalKwh;  // nieuwe laadsessie
-  if (!charging && live.evState == 1) live.evState = 2;                      // klaar
-  if (charging) live.evState = 1;
-  samplerAdd(CH_EV_W, w);
-  markOk(S_EV);
-}
-
-// ---------------- SMA Sunny Boy (Modbus TCP) ----------------
-// 30775 = AC-vermogen (S32, W), 30529 = totale opbrengst (U32, Wh). 's Nachts geeft 30775 NaN (0x80000000).
-void pollSma() {
-  const char* keys[2] = {"sma1_ip", "sma2_ip"};
-  uint8_t unit = cfgInt("sma_unit", 3);
-  bool any = false, anyErr = false;
-  String lastErr;
-  for (int i = 0; i < 2; i++) {
-    String ip = cfg(keys[i]);
-    if (!ip.length()) continue;
-    any = true;
-    uint16_t r[2];
-    String err;
-    if (modbusRead(ip, 502, unit, 3, 30775, 2, r, err)) {
-      int32_t w = mbS32(r);
-      live.smaW[i] = (w == (int32_t)0x80000000 || w < 0) ? 0 : (float)w;
-    } else {
-      anyErr = true;
-      lastErr = "SMA " + String(i + 1) + ": " + err;
-      live.smaW[i] = NAN;
-      continue;
-    }
-    if (modbusRead(ip, 502, unit, 3, 30529, 2, r, err)) {
-      uint32_t wh = mbU32(r);
-      if (wh != 0xFFFFFFFF && wh != 0x80000000) live.smaTotalKwh[i] = wh / 1000.0;
-    }
-  }
-  if (!any) return;
-  float s = 0;
-  double tot = 0;
-  bool okW = false, okT = true;
-  for (int i = 0; i < 2; i++) {
-    if (!isnan(live.smaW[i])) s += live.smaW[i], okW = true;
-    if (cfg(keys[i]).length()) {
-      if (isnan(live.smaTotalKwh[i])) okT = false;
-      else tot += live.smaTotalKwh[i];
-    }
-  }
-  live.solarW = okW ? s : NAN;
-  live.solarTotalKwh = okT ? tot : NAN;
-  samplerAdd(CH_SOLAR_W, live.solarW);
-  if (anyErr) markErr(S_SMA, lastErr);
-  else markOk(S_SMA);
 }
 
 // ---------------- Marstek Venus E V3 ----------------
