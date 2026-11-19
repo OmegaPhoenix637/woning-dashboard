@@ -1,6 +1,8 @@
-// Eenvoudige service worker: de app-schil werkt ook offline.
-// Data van api.github.com wordt NIET gecachet (bevat de koppelcode in de header).
-const CACHE = 'mw-shell-v1';
+// Service worker: de app werkt ook offline.
+// - De pagina zelf (index.html): eerst online ophalen (altijd de nieuwste versie), cache alleen als reserve.
+// - Bestanden met een hash in de naam (assets/...): uit de cache, ze veranderen nooit.
+// - Data van api.github.com wordt NIET gecachet (bevat de koppelcode in de header).
+const CACHE = 'mw-shell-v2';
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(['./', './index.html', './manifest.webmanifest', './icon.svg'])));
@@ -17,17 +19,30 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== self.location.origin) return;
-  // Stale-while-revalidate: direct uit cache, op de achtergrond verversen.
-  e.respondWith(
-    caches.open(CACHE).then(async (cache) => {
-      const cached = await cache.match(e.request);
-      const fresh = fetch(e.request)
+
+  const isPage = e.request.mode === 'navigate' || url.pathname.endsWith('/') || url.pathname.endsWith('.html');
+  if (isPage) {
+    // Netwerk eerst
+    e.respondWith(
+      fetch(e.request)
         .then((res) => {
-          if (res.ok) cache.put(e.request, res.clone());
+          if (res.ok) caches.open(CACHE).then((c) => c.put(e.request, res.clone()));
           return res;
         })
-        .catch(() => cached);
-      return cached || fresh;
-    }),
+        .catch(() => caches.match(e.request).then((r) => r || caches.match('./index.html'))),
+    );
+    return;
+  }
+
+  // Overige bestanden: cache eerst, anders ophalen en bewaren
+  e.respondWith(
+    caches.match(e.request).then(
+      (cached) =>
+        cached ||
+        fetch(e.request).then((res) => {
+          if (res.ok) caches.open(CACHE).then((c) => c.put(e.request, res.clone()));
+          return res;
+        }),
+    ),
   );
 });

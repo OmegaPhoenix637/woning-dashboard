@@ -1,6 +1,7 @@
 <script lang="ts">
   // Strakke, minimalistische energiescène: het huis als lijntekening (naar de echte woning),
   // met zon, net en batterijen eromheen. Energie stroomt als lichtpuntjes over dunne lijnen.
+  import { onMount } from 'svelte';
   import { Sun, Moon, UtilityPole } from 'lucide';
   import Icon from './Icon.svelte';
   import AnimatedNumber from './AnimatedNumber.svelte';
@@ -78,6 +79,45 @@
     !matchMedia('(prefers-reduced-motion: reduce)').matches &&
     document.documentElement.dataset.motion !== 'off';
 
+  // ---- Animatielus voor de lichtpuntjes (requestAnimationFrame i.p.v. SVG-SMIL: betrouwbaarder) ----
+  const pathEls: Record<string, SVGPathElement> = {};
+  const dotEls: Record<string, SVGGElement> = {};
+  const phase: Record<string, number> = {};
+
+  onMount(() => {
+    let raf = 0;
+    let last = performance.now();
+    const frame = (now: number) => {
+      const dt = Math.min(0.1, (now - last) / 1000);
+      last = now;
+      for (const f of flows) {
+        const path = pathEls[f.id];
+        if (!path) continue;
+        const active = Math.abs(f.w) >= TH;
+        const len = path.getTotalLength();
+        if (motionOk && active) phase[f.id] = ((phase[f.id] ?? 0) + dt / dur(f.w)) % 1;
+        for (let k = 0; k < 3; k++) {
+          const g = dotEls[f.id + k];
+          if (!g) continue;
+          if (!active || !len) {
+            g.style.opacity = '0';
+            continue;
+          }
+          let fr = ((phase[f.id] ?? 0) + k / 3) % 1;
+          if (!motionOk) fr = (k + 0.5) / 3; // geen animatie: stil op de lijn
+          if (f.rev) fr = 1 - fr;
+          const pt = path.getPointAtLength(fr * len);
+          g.setAttribute('transform', `translate(${pt.x.toFixed(1)} ${pt.y.toFixed(1)})`);
+          // zacht in- en uitfaden aan de uiteinden
+          g.style.opacity = motionOk ? String(Math.min(1, fr * 8, (1 - fr) * 8)) : '1';
+        }
+      }
+      raf = requestAnimationFrame(frame);
+    };
+    raf = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(raf);
+  });
+
   function dur(w: number) {
     const d = Math.max(0.9, Math.min(3.6, 4.4 - Math.log10(Math.max(30, Math.abs(w))) * 0.95));
     return Math.round(d * 4) / 4;
@@ -116,7 +156,7 @@
 
     <!-- lijnen -->
     {#each flows as f (f.id)}
-      <path d={f.d} class="line" />
+      <path d={f.d} class="line" bind:this={pathEls[f.id]} />
       {#if Math.abs(f.w) >= TH}<path d={f.d} class="line-on" style="stroke: var(--g-{f.c})" />{/if}
     {/each}
 
@@ -180,31 +220,15 @@
       <path d="M-30 240 H250" class="ground" />
     </g>
 
-    <!-- bewegende energie -->
-    {#if motionOk}
-      {#each flows as f (f.id)}
-        {#if Math.abs(f.w) >= TH}
-          {@const dd = dur(f.w)}
-          {#key `${f.id}-${dd}-${f.rev}-${f.d}`}
-            {#each [0, 1, 2] as k (k)}
-              <g>
-                <circle r="9" fill="url(#es-dot-{f.c})" />
-                <circle r="2.6" style="fill: var(--g-{f.c})" />
-                <animateMotion
-                  dur="{dd}s"
-                  begin="-{(k * dd) / 3}s"
-                  repeatCount="indefinite"
-                  keyPoints={f.rev ? '1;0' : '0;1'}
-                  keyTimes="0;1"
-                  calcMode="linear"
-                  path={f.d}
-                />
-              </g>
-            {/each}
-          {/key}
-        {/if}
+    <!-- bewegende energie: posities worden elk frame berekend (zie onMount) -->
+    {#each flows as f (f.id)}
+      {#each [0, 1, 2] as k (k)}
+        <g class="dot" bind:this={dotEls[f.id + k]} style="opacity:0">
+          <circle r="9" fill="url(#es-dot-{f.c})" />
+          <circle r="2.6" style="fill: var(--g-{f.c})" />
+        </g>
       {/each}
-    {/if}
+    {/each}
   </svg>
 
   <!-- knooppunten -->
