@@ -514,11 +514,17 @@ void pollWeather() {
   if (!cfgHas("lat") || !cfgHas("lon")) return;
   JsonDocument doc;
   String err;
+  String lat = cfg("lat"), lon = cfg("lon");
+  lat.replace(',', '.');  // 50,90 -> 50.90 (een komma betekent voor Open-Meteo 'meerdere locaties')
+  lon.replace(',', '.');
+  lat.trim();
+  lon.trim();
   int code = httpJson("GET",
-                      "https://api.open-meteo.com/v1/forecast?latitude=" + cfg("lat") + "&longitude=" + cfg("lon") +
+                      "https://api.open-meteo.com/v1/forecast?latitude=" + lat + "&longitude=" + lon +
                           "&current=temperature_2m,cloud_cover&timezone=Europe%2FAmsterdam",
                       "", doc, nullptr, {}, &err);
   if (code != 200) return markErr(S_WEATHER, err);
+  if (!doc["current"].is<JsonObjectConst>()) return markErr(S_WEATHER, "geen weerbericht (coördinaten controleren)");
   live.tOut = fnum(doc["current"]["temperature_2m"]);
   live.cloud = fnum(doc["current"]["cloud_cover"]);
   samplerAdd(CH_T_OUT, live.tOut);
