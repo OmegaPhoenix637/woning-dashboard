@@ -106,6 +106,7 @@
 
   <!-- Telefoon: vaste tabbalk onderin (staand) of smalle balk links (liggend) -->
   <nav class="tabbar" aria-label="Hoofdmenu">
+    <div class="only-landscape rail-status {status}" title={statusText}><span class="dot"></span><span>{status === 'ok' ? 'Live' : status === 'late' ? 'Oud' : 'Uit'}</span></div>
     {#each NAV.filter((n) => n.tab) as n (n.route)}
       <a href={href(n.route)} class:active={router.route === n.route} aria-current={router.route === n.route ? 'page' : undefined}>
         <Icon icon={n.icon} size={23} stroke={router.route === n.route ? 2.2 : 1.8} />
@@ -255,8 +256,8 @@
     }
   }
 
-  /* ---------- Telefoon liggend: smalle navigatie links, maximale ruimte voor inhoud ---------- */
-  @media (orientation: landscape) and (max-height: 540px) {
+  /* ---------- Liggend (telefoon en iPad): navigatie als balk links, maximale ruimte voor inhoud ---------- */
+  @media (orientation: landscape) and (max-height: 540px), (orientation: landscape) and (pointer: coarse) and (max-width: 1500px) {
     .topbar {
       display: none;
     }
@@ -281,10 +282,78 @@
     .tabbar .only-landscape {
       display: flex;
     }
+    .rail-status {
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      font-size: 9.5px;
+      font-weight: 700;
+      color: var(--text-2);
+    }
+  }
+  .rail-status {
+    display: none;
+  }
+  .rail-status .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--s-crit);
+  }
+  .rail-status.ok .dot {
+    background: var(--s-good);
+    color: var(--s-good);
+    animation: pulse 2.4s infinite;
+  }
+  .rail-status.late .dot {
+    background: var(--s-warn);
   }
 
-  /* ---------- Desktop ---------- */
-  @media (min-width: 1024px) and (min-height: 541px) {
+  /* iPad liggend: bredere balk met grotere knoppen */
+  @media (orientation: landscape) and (pointer: coarse) and (min-height: 541px) and (max-width: 1500px) {
+    main {
+      padding: 24px calc(24px + env(safe-area-inset-right)) 32px calc(124px + env(safe-area-inset-left));
+    }
+    .tabbar {
+      width: 96px;
+      left: max(12px, env(safe-area-inset-left));
+      top: 12px;
+      bottom: 12px;
+      border-radius: 30px;
+    }
+    .tabbar a {
+      font-size: 11.5px;
+      gap: 5px;
+    }
+    .rail-status {
+      font-size: 11px;
+    }
+  }
+
+  /* iPad staand: tabbalk onderin, gecentreerd en wat groter; meer ruimte rondom */
+  @media (orientation: portrait) and (pointer: coarse) and (min-width: 700px) {
+    main {
+      padding: 20px max(28px, env(safe-area-inset-left)) calc(124px + env(safe-area-inset-bottom)) max(28px, env(safe-area-inset-right));
+    }
+    .tabbar {
+      left: max(24px, calc(50% - 360px));
+      right: max(24px, calc(50% - 360px));
+      bottom: max(16px, env(safe-area-inset-bottom));
+      padding: 8px;
+    }
+    .tabbar a {
+      min-height: 64px;
+      font-size: 12.5px;
+    }
+    .topbar {
+      padding-left: max(28px, env(safe-area-inset-left));
+      padding-right: max(28px, env(safe-area-inset-right));
+    }
+  }
+
+  /* ---------- Desktop (muis/trackpad) ---------- */
+  @media (min-width: 1024px) and (min-height: 541px) and (pointer: fine) {
     .shell {
       display: grid;
       grid-template-columns: 248px 1fr;

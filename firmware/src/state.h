@@ -62,6 +62,11 @@ struct LiveState {
 
 extern LiveState live;
 
+// Diagnose: waarom is de ESP (her)start? Wordt bewaard in het flashgeheugen.
+extern char g_lastReset[64];
+extern uint32_t g_boots;
+extern String g_resetHist;  // JSON-array met de laatste herstarts [{"t":unix,"r":"reden"},...]
+
 uint32_t nowUnix();
 bool timeValid();
 void markOk(SrcId s);

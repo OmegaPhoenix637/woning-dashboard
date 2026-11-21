@@ -28,7 +28,7 @@
 // GitHub staat ~500 schrijfacties per uur toe.
 //  - elke 10 s live.json bijwerken met 1 actie (Contents API)          = 360/uur
 //  - elke 5 min live + today.json als nieuwe commit zonder geschiedenis = 4 acties -> 48/uur
-#define IV_LIVE_UPLOAD 9000UL  // gemeten effectief ~10 s (een upload duurt zelf 1-2 s)
+#define IV_LIVE_UPLOAD 19000UL  // ~20 s (rustiger voor voeding en warmte; een upload duurt zelf 1-3 s)
 #define IV_TODAY_UPLOAD 300UL  // seconden
 #define IV_RETRY_DAYS 600000UL   // opnieuw proberen van achterstallige dagen
 

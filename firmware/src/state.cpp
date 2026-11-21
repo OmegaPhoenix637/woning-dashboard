@@ -2,6 +2,9 @@
 #include <time.h>
 
 LiveState live;
+char g_lastReset[64] = "";
+uint32_t g_boots = 0;
+String g_resetHist = "[]";
 
 uint32_t nowUnix() { return (uint32_t)time(nullptr); }
 

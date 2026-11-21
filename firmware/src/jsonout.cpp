@@ -130,6 +130,10 @@ void writeLiveJson(Print& out) {
   h["heap"] = ESP.getFreeHeap();
   h["uptime"] = millis() / 1000;
   h["fw"] = FW_VERSION;
+  h["minHeap"] = ESP.getMinFreeHeap();
+  h["boots"] = g_boots;
+  h["lastReset"] = g_lastReset;
+  h["resets"] = serialized(g_resetHist);
   h["pending"] = pendingCount();
   serializeJson(d, out);
 }

@@ -141,7 +141,7 @@
           <Explain label="Hoe lees ik dit?">
             <p>De <b>lichtpuntjes</b> laten zien waar de stroom op dit moment naartoe gaat. Hoe sneller ze bewegen, hoe meer stroom.</p>
             <p><b>Zon → huis:</b> de zonnepanelen leveren stroom. <b>Net:</b> stroom van of naar het elektriciteitsnet (teruglevering gaat van het huis naar het net). <b>Batterijen:</b> laden (stroom gaat erin) of ontladen (stroom gaat naar het huis); de ring om het rondje laat zien hoe vol ze zijn. </p>
-            <p>Het getal bij het huis is wat het huis op dit moment verbruikt. Alles ververst vanzelf elke paar minuten.</p>
+            <p>Het getal bij het huis is wat het huis op dit moment opneemt. Laadt de batterij (ook vanaf het net), dan telt dat mee en zie je eronder de verdeling: apparaten + batterij laden. Alles ververst vanzelf elke paar minuten.</p>
           </Explain>
         </div>
       </div>

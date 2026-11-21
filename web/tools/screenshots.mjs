@@ -97,6 +97,15 @@ await shoot('24-android-klein-scene', '#/overzicht', { width: 360, height: 780, 
 await shoot('25-iphone15-scene', '#/overzicht', { width: 393, height: 852, scale: 2, mobile: true, full: false, action: async (p) => p.evaluate(() => window.scrollTo(0, 230)) });
 await shoot('26-iphone16promax-scene', '#/overzicht', { width: 440, height: 956, scale: 2, mobile: true, full: false, action: async (p) => p.evaluate(() => window.scrollTo(0, 230)) });
 
+// iPad (Air/Pro 11: 820x1180) staand en liggend
+const IPAD = { width: 820, height: 1180, scale: 2, mobile: true };
+const IPADL = { width: 1180, height: 820, scale: 2, mobile: true };
+await shoot('27-ipad-staand-overzicht', '#/overzicht', { ...IPAD, full: false });
+await shoot('28-ipad-liggend-overzicht', '#/overzicht', { ...IPADL, full: false });
+await shoot('29-ipad-staand-energie', '#/energie', IPAD);
+await shoot('30-iphone-liggend-overzicht-scene', '#/overzicht', { ...PL, full: false, action: async (p) => p.evaluate(() => window.scrollTo(0, 260)) });
+await shoot('31-iphone-liggend-batterij', '#/batterijen', { ...PL, full: false });
+
 // App-iconen (PNG) voor installatie op telefoon
 if (!filter) {
   const ctx = await browser.newContext({ viewport: { width: 512, height: 512 } });

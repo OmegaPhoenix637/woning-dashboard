@@ -26,6 +26,7 @@
 
   let width = $state(900);
   const tall = $derived(width < 600);
+  const medium = $derived(width >= 600 && width < 1200);
   const TH = 25;
 
   // Lay-out in viewBox-eenheden. Huis lokaal 220 x 240.
@@ -40,7 +41,17 @@
           nodes: { sun: [80, 128], bat: [320, 128], grid: [80, 566] },
           r: 44,
         }
-      : {
+      : medium
+        ? {
+            W: 1000,
+            H: 600,
+            house: { x: 380, y: 112, s: 1.08 },
+            houseLabel: [500, 400],
+            phases: [830, 448],
+            nodes: { sun: [170, 112], bat: [830, 112], grid: [170, 440] },
+            r: 46,
+          }
+        : {
           W: 1000,
           H: 470,
           house: { x: 380, y: 92, s: 1.08 },
@@ -70,6 +81,8 @@
   const batSoc = $derived(
     batteries.reduce((a, b) => a + b.soc * b.capacityKwh, 0) / Math.max(0.01, batteries.reduce((a, b) => a + b.capacityKwh, 0)),
   );
+  // Wat het huis in totaal opneemt: apparaten + batterij laden (laden telt mee als verbruik)
+  const houseTotal = $derived(houseW + Math.max(0, batW > TH ? batW : 0));
   const solarK = $derived(Math.min(1, Math.max(0, solarW / 6500)));
 
   const flows = $derived([
@@ -293,7 +306,12 @@
 
   <div class="house-cap" style={pos(L.houseLabel)}>
     <span class="name">Huis verbruikt</span>
-    <span class="val big"><AnimatedNumber value={houseW} format={(v) => P(v)[0]} /><small>{P(houseW)[1]}</small></span>
+    <span class="val big"><AnimatedNumber value={houseTotal} format={(v) => P(v)[0]} /><small>{P(houseTotal)[1]}</small></span>
+    {#if batW > TH}
+      <span class="split"><i style="background: var(--g-house)"></i>{P(houseW).join(' ')} apparaten <i style="background: var(--g-battery)"></i>{P(batW).join(' ')} batterij laden</span>
+    {:else if batW < -TH}
+      <span class="split"><i style="background: var(--g-battery)"></i>waarvan {P(-batW).join(' ')} uit de batterij</span>
+    {/if}
   </div>
 </div>
 
@@ -607,6 +625,26 @@
     color: var(--text-2);
     margin-left: 2px;
     font-weight: 600;
+  }
+  .split {
+    display: inline-flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 4px 6px;
+    margin-top: 4px;
+    font-size: clamp(11.5px, 1.4cqw, 13.5px);
+    color: var(--text-2);
+    font-weight: 600;
+  }
+  .split i {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  .tall .split {
+    font-size: 11.5px;
   }
   .cap,
   .house-cap {

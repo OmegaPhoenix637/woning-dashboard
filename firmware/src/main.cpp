@@ -6,6 +6,9 @@
 #include <LittleFS.h>
 #include <WiFi.h>
 #include <esp_task_wdt.h>
+#include <esp_system.h>
+#include <Preferences.h>
+#include <ArduinoJson.h>
 #include <time.h>
 #include "config.h"
 #include "github.h"
@@ -35,6 +38,51 @@ static Task tasks[] = {
 static const size_t N_TASKS = sizeof(tasks) / sizeof(tasks[0]);
 
 static bool apMode = false;
+
+static const char* resetText(esp_reset_reason_t r) {
+  switch (r) {
+    case ESP_RST_POWERON: return "stroom aangesloten";
+    case ESP_RST_BROWNOUT: return "stroomdip (voeding of kabel te zwak)";
+    case ESP_RST_TASK_WDT:
+    case ESP_RST_INT_WDT:
+    case ESP_RST_WDT: return "waakhond (iets bleef hangen)";
+    case ESP_RST_PANIC: return "crash in de software";
+    case ESP_RST_SW: return "herstart door software/instellingen";
+    case ESP_RST_EXT: return "reset-knop";
+    default: return "onbekend";
+  }
+}
+
+// Bij elke start: reden + teller bewaren; het tijdstip wordt ingevuld zodra de klok bekend is.
+static void recordBoot() {
+  strlcpy(g_lastReset, resetText(esp_reset_reason()), sizeof(g_lastReset));
+  Preferences p;
+  p.begin("diag", false);
+  g_boots = p.getUInt("boots", 0) + 1;
+  p.putUInt("boots", g_boots);
+  g_resetHist = p.getString("hist", "[]");
+  p.end();
+  Serial.printf("Start nr. %u, reden: %s\n", g_boots, g_lastReset);
+}
+
+static void recordBootTime() {
+  static bool done = false;
+  if (done || !timeValid()) return;
+  done = true;
+  JsonDocument d;
+  deserializeJson(d, g_resetHist);
+  JsonArray a = d.is<JsonArray>() ? d.as<JsonArray>() : d.to<JsonArray>();
+  JsonObject o = a.add<JsonObject>();
+  o["t"] = nowUnix();
+  o["r"] = g_lastReset;
+  while (a.size() > 8) a.remove(0);  // laatste 8 bewaren
+  g_resetHist = "";
+  serializeJson(d, g_resetHist);
+  Preferences p;
+  p.begin("diag", false);
+  p.putString("hist", g_resetHist);
+  p.end();
+}
 static int lastDiscReason = 0;
 static String wifiScan;  // zichtbare netwerken (voor de instelpagina)
 
@@ -135,7 +183,8 @@ static void startWifi() {
   if (ssid.length()) connectWifi(ssid, cfg("wifi_pass"), 4);
   if (WiFi.status() == WL_CONNECTED) {
     Serial.printf("Wifi OK, IP %s\n", WiFi.localIP().toString().c_str());
-    WiFi.setSleep(false);  // radio altijd paraat: snelle uploads (elke ~10 s)
+    WiFi.setSleep(false);  // radio altijd paraat: snelle uploads
+    WiFi.setTxPower(WIFI_POWER_15dBm);  // iets minder zendvermogen = kleinere stroompieken (signaal is ruim genoeg)
   } else if (ssid.length()) {
     // Wifi is ingesteld maar lukt (nog) niet: geen instelnetwerk, gewoon blijven proberen (instellen kan via USB).
     Serial.printf("Verbinden met '%s' mislukt: %s (code %d). Opnieuw proberen over 30 s.\n", ssid.c_str(),
@@ -154,6 +203,7 @@ static void startWifi() {
 void setup() {
   Serial.begin(115200);
   setCpuFrequencyMhz(160);  // ruim genoeg; koeler en zuiniger dan 240 MHz
+  recordBoot();
   delay(200);
   Serial.printf("\n=== Mijn Woning datalogger %s ===\n", FW_VERSION);
   if (!LittleFS.begin(true)) Serial.println("LittleFS mislukt");
@@ -164,7 +214,7 @@ void setup() {
   Serial.println(timeValid() ? "Tijd gesynchroniseerd" : "Tijd nog niet bekend");
   samplerBegin();
   portalBegin();
-  esp_task_wdt_init(90, true);  // herstart als iets langer dan 90 s blijft hangen
+  esp_task_wdt_init(120, true);  // herstart als iets langer dan 2 minuten blijft hangen
   esp_task_wdt_add(NULL);
   // Bronnen gespreid laten starten
   unsigned long now = millis();
@@ -204,6 +254,7 @@ void loop() {
   }
 
   samplerTick();
+  recordBootTime();
   if (!timeValid() || WiFi.status() != WL_CONNECTED) {
     delay(20);
     return;
