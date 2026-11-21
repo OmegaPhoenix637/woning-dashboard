@@ -462,3 +462,22 @@ table.data tr:last-child td {
 .u-select {
   background: color-mix(in srgb, var(--text) 8%, transparent);
 }
+
+/* Telefoon liggend: compacte paginakop, zodat de inhoud meteen in beeld is */
+@media (orientation: landscape) and (max-height: 540px) {
+  .page {
+    gap: 14px;
+  }
+  .page-head {
+    margin: 0;
+  }
+  .page-head h1 {
+    font-size: 26px;
+  }
+  .page-head > div > p:not(.eyebrow) {
+    display: none; /* liggend: uitlegzin verbergen */
+  }
+  .card {
+    padding: 14px;
+  }
+}

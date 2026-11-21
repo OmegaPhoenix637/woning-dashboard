@@ -316,6 +316,15 @@
     text-decoration: underline;
   }
 
+  /* Telefoon liggend: kop van de scène verbergen, zodat de hele scène in beeld past */
+  @media (orientation: landscape) and (max-height: 540px) {
+    .scene-card .card-head {
+      display: none;
+    }
+    .scene-card {
+      padding: 8px 12px;
+    }
+  }
   .scene-card {
     padding: 16px 16px 16px;
   }

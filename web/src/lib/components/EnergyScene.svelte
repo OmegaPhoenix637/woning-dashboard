@@ -25,8 +25,18 @@
   } = $props();
 
   let width = $state(900);
-  const tall = $derived(width < 600);
-  const medium = $derived(width >= 600 && width < 1200);
+  // Telefoon liggend: weinig hoogte -> platte indeling zodat alles zonder scrollen past
+  let shortScreen = $state(false);
+  onMount(() => {
+    const mq = matchMedia('(orientation: landscape) and (max-height: 540px)');
+    const upd = () => (shortScreen = mq.matches);
+    upd();
+    mq.addEventListener('change', upd);
+    return () => mq.removeEventListener('change', upd);
+  });
+  const short = $derived(shortScreen && width >= 500);
+  const tall = $derived(width < 600 && !short);
+  const medium = $derived(!short && width >= 600 && width < 1200);
   const TH = 25;
 
   // Lay-out in viewBox-eenheden. Huis lokaal 220 x 240.
@@ -41,7 +51,17 @@
           nodes: { sun: [80, 128], bat: [320, 128], grid: [80, 566] },
           r: 44,
         }
-      : medium
+      : short
+        ? {
+            W: 1000,
+            H: 380,
+            house: { x: 407, y: 44, s: 0.85 },
+            houseLabel: [500, 270],
+            phases: [850, 292],
+            nodes: { sun: [150, 84], bat: [850, 84], grid: [150, 268] },
+            r: 38,
+          }
+        : medium
         ? {
             W: 1000,
             H: 600,
@@ -145,7 +165,7 @@
   const lit = $derived(night ? 0.5 + Math.min(0.5, houseW / 3000) : 0);
 </script>
 
-<div class="scene" class:tall bind:clientWidth={width} style="aspect-ratio:{L.W} / {L.H}">
+<div class="scene" class:tall class:short bind:clientWidth={width} style="aspect-ratio:{L.W} / {L.H}">
   <svg viewBox="0 0 {L.W} {L.H}" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
     <defs>
       <radialGradient id="es-halo">
@@ -645,6 +665,38 @@
   }
   .tall .split {
     font-size: 11.5px;
+  }
+  /* Telefoon liggend: compacter */
+  .short .node {
+    --size: clamp(44px, 7.2cqw, 74px);
+    gap: 6px;
+  }
+  .short .name {
+    font-size: 11.5px;
+  }
+  .short .val {
+    font-size: 17px;
+  }
+  .short .val.big {
+    font-size: 24px;
+  }
+  .short .pct {
+    font-size: 11px;
+  }
+  .short .split {
+    font-size: 11px;
+  }
+  .short .phases {
+    width: clamp(150px, 26cqw, 220px);
+    padding: 8px 10px;
+    gap: 5px;
+  }
+  .short .ph-val {
+    font-size: 13px;
+    min-width: 46px;
+  }
+  .short .ph-title {
+    font-size: 11px;
   }
   .cap,
   .house-cap {
