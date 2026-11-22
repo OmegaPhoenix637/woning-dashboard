@@ -32,6 +32,7 @@ static int fastIdx(int ch) {
     if (FAST_CH[f] == ch) return f;
   return -1;
 }
+static int16_t fastOrSlow(int f, int s);
 // Tellers: tijdstip van de laatste geaccepteerde stand en sinds wanneer de teller lager staat (vervangen meter?)
 static uint32_t cT1[9], cLowSince[9];
 
@@ -478,6 +479,9 @@ static void finalizeDay() {
     for (int ch = 0; ch < N_CH; ch++) f.write((uint8_t*)V[ch], M.n * 2);
     f.close();
   }
+  for (int k = 0; k < N_FAST; k++)
+    for (int x = 0; x < M.nF; x++) F[k][x] = fastOrSlow(k, x);
+  M.curIdx = -1;
   f = LittleFS.open(base + ".fst", "w");
   if (f) {
     uint16_t nf = N_FAST;
@@ -626,6 +630,15 @@ static void writeHeader(Print& out, const char* date, uint32_t start, uint16_t n
   out.print(",\"ch\":{");
 }
 
+// Minuutwaarde, of (als die ontbreekt) het 5-minutengemiddelde van dat moment. Zo vallen er geen gaten
+// bij een korte herstart of bij dagen van vóór de minuutopslag.
+static int16_t fastOrSlow(int f, int s) {
+  int16_t v = F[f][s];
+  if (v != MISSING) return v;
+  int si = s * FAST_STEP_S / STEP_S;
+  return (si < M.n && si != M.curIdx) ? V[FAST_CH[f]][si] : MISSING;
+}
+
 static void writeFastJson(Print& out, uint16_t nF, File* src) {
   out.print("},\"fast\":{\"step\":");
   out.print(FAST_STEP_S);
@@ -645,7 +658,7 @@ static void writeFastJson(Print& out, uint16_t nF, File* src) {
         if (src->read((uint8_t*)buf, k * 2) != k * 2)
           for (int j = 0; j < k; j++) buf[j] = MISSING;
       } else {
-        memcpy(buf, &F[f][s], k * 2);
+        for (int j = 0; j < k; j++) buf[j] = fastOrSlow(f, s + j);
       }
       for (int j = 0; j < k; j++, s++) {
         if (s) out.print(',');
@@ -654,6 +667,7 @@ static void writeFastJson(Print& out, uint16_t nF, File* src) {
     }
     out.print(']');
   }
+  out.print('}');  // einde fast.ch (de aanroeper sluit "fast" af)
 }
 
 void writeTodayJson(Print& out) {

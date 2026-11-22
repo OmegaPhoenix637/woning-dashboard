@@ -249,6 +249,21 @@ Doe dit pas als *github* op ✓ staat en er een paar minuten data is.
 | `HTTP 401` bij GitHub | Token verlopen of verkeerd: maak een nieuw token (stap 3). |
 | `geen airco's herkend` | Namen bij Daikin moeten exact gelijk zijn aan de Onecta-app. |
 
+### Gaten in de grafieken / de ESP herstart steeds
+
+Kijk op de website bij **Instellingen → Status**, of in `live.json` bij `health`: `boots` (aantal starts),
+`lastReset` en `resets` (de laatste 8 herstarts met reden).
+
+- **"stroomdip (voeding of kabel te zwak)"**: de ESP krijgt bij het zenden van wifi even te weinig stroom.
+  Oplossing, in deze volgorde:
+  1. Een goede **5 V / 2 A** adapter (bv. van een recente telefoon) en een **korte, dikke** USB-kabel (≤ 1 m).
+     Dunne/lange kabels en oude adapters zijn de meest voorkomende oorzaak.
+  2. Een elco van **470–1000 µF / 10 V** tussen de pinnen **5V (VIN)** en **GND** van het ESP-bordje (+ aan 5V).
+  3. Zendvermogen lager: `set wifi_tx 11` (standaard 13 dBm; lager = minder stroompiek, maar minder bereik).
+  4. Noodoplossing: `set bod_uit 1` zet de stroomdip-bewaking uit. De ESP herstart dan niet meer bij een
+     kleine dip, maar bij een echt slechte voeding kan hij vastlopen (de waakhond herstart hem dan na 2 min).
+- **"waakhond"** of **"crash"**: stuur de laatste regels van de USB-log door.
+
 Meekijken met de laptop (USB): in de map `firmware`:
 ```bash
 python -m platformio device monitor -p COM11

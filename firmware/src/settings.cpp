@@ -8,6 +8,10 @@ const FieldDef FIELDS[] = {
     {"wifi_ssid", "Wifi-netwerk", "Wifi", F_TEXT, "", "Naam van het thuisnetwerk (2,4 GHz)."},
     {"wifi_pass", "Wifi-wachtwoord", "Wifi", F_SECRET, "", ""},
     {"portal_pass", "Wachtwoord instelpagina", "Wifi", F_SECRET, "", "Optioneel. Gebruikersnaam is dan 'admin'."},
+    {"wifi_tx", "Zendvermogen (dBm)", "Wifi", F_NUMBER, "13",
+     "Standaard 13. Lager (bv. 11) = kleinere stroompieken bij een zwakke voeding, maar minder bereik. Max 19."},
+    {"bod_uit", "Stroomdip-bewaking uit (noodoptie)", "Wifi", F_BOOL, "0",
+     "Alleen als de ESP steeds herstart door stroomdips en een betere voeding niet lukt."},
     // GitHub
     {"gh_owner", "GitHub-gebruiker", "GitHub (opslag)", F_TEXT, "OmegaPhoenix637", ""},
     {"gh_repo", "Data-repo (privé)", "GitHub (opslag)", F_TEXT, "woning-data", ""},
