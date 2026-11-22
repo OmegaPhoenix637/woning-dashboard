@@ -3,6 +3,7 @@ import type { DayData, DayTotals, LiveData, Settings, YearSummary } from '../typ
 import { DEVICES } from '../types';
 import { DEFAULT_SETTINGS, computeMoney, sumMoney, type Money } from '../calc/tariff';
 import { todayIso } from '../date';
+import { normalizeDay } from './normalize';
 import type { DataSource } from './source';
 import { DemoSource } from './mock';
 import { GithubSource, type GithubConfig } from './github';
@@ -115,7 +116,7 @@ class AppState {
       ]);
       this.settings = settings;
       this.live = live;
-      this.today = today;
+      this.today = normalizeDay(today);
       const y = new Date().getFullYear();
       await this.ensureYear(y);
       // Vorig jaar alvast op de achtergrond voor vergelijkingen en week/maand rond de jaarwissel.
@@ -145,7 +146,7 @@ class AppState {
     try {
       this.live = await this.source.live();
       if (withToday) {
-        this.today = await this.source.today();
+        this.today = normalizeDay(await this.source.today());
         const y = new Date().getFullYear();
         const s = this.years[y];
         if (s && this.today) {
@@ -206,7 +207,7 @@ class AppState {
 
   day(date: string): Promise<DayData | null> {
     if (date === todayIso() && this.today) return Promise.resolve(this.today);
-    return this.source.day(date);
+    return this.source.day(date).then((d) => normalizeDay(d));
   }
 
   get firstDate(): string {

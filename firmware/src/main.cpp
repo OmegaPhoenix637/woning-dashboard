@@ -10,6 +10,8 @@
 #include <Preferences.h>
 #include <ArduinoJson.h>
 #include <time.h>
+#include "soc/rtc_cntl_reg.h"
+#include "soc/soc.h"
 #include "config.h"
 #include "github.h"
 #include "portal.h"
@@ -25,10 +27,16 @@ struct Task {
   unsigned long last;
 };
 
+// P1, SMA en batterijen in één keer: één momentopname waarin alles bij elkaar past.
+// Het net (P1) als laatste, zo dicht mogelijk op de batterijen die op het net reageren.
+static void pollLocal() {
+  pollBatteries();
+  pollSma();
+  pollP1();
+}
+
 static Task tasks[] = {
-    {"p1", pollP1, IV_P1, 0},
-    {"sma", pollSma, IV_SMA, 0},
-    {"bat", pollBatteries, IV_BAT, 0},
+    {"lokaal", pollLocal, IV_LOCAL, 0},
     {"weer", pollWeather, IV_WEATHER, 0},
     {"onecta", pollOnecta, IV_ONECTA, 0},
     {"homeconnect", pollHomeConnect, IV_HC_IDLE, 0},
@@ -137,6 +145,13 @@ static void scanNetworks() {
 }
 static unsigned long lastLiveUpload = 0, lastPendingTry = 0, lastWifiTry = 0;
 
+// Zendvermogen (dBm, instelling wifi_tx, standaard 13). Lager = kleinere stroompieken (minder kans op stroomdips),
+// maar ook minder bereik. 19,5 is het maximum van de ESP32.
+static void applyTxPower() {
+  int dbm = constrain(cfgInt("wifi_tx", 13), 2, 19);
+  WiFi.setTxPower((wifi_power_t)(dbm * 4));
+}
+
 // Verbinden met de sterkste zender van dit netwerk (bij mesh-netwerken zijn er meerdere), met herhaalpogingen.
 static bool connectWifi(const String& ssid, const String& pass, int tries) {
   for (int t = 0; t < tries; t++) {
@@ -151,16 +166,19 @@ static bool connectWifi(const String& ssid, const String& pass, int tries) {
       Serial.printf("Verbinden met '%s' via zender %02X:%02X:%02X:%02X:%02X:%02X (kanaal %d, %d dBm), poging %d",
                     ssid.c_str(), bssid[0], bssid[1], bssid[2], bssid[3], bssid[4], bssid[5], ch, WiFi.RSSI(best), t + 1);
       WiFi.scanDelete();
+      lastDiscReason = 0;
       WiFi.begin(ssid.c_str(), pass.c_str(), ch, bssid);
     } else {
       WiFi.scanDelete();
       Serial.printf("Verbinden met '%s', poging %d", ssid.c_str(), t + 1);
+      lastDiscReason = 0;
       WiFi.begin(ssid.c_str(), pass.c_str());
     }
     for (int i = 0; i < 30 && WiFi.status() != WL_CONNECTED; i++) {
       delay(500);
       Serial.print('.');
       settingsConsole();
+      if (lastDiscReason && i >= 6) break;  // router weigerde: niet 15 s wachten, meteen opnieuw
     }
     Serial.println();
     if (WiFi.status() == WL_CONNECTED) return true;
@@ -177,6 +195,7 @@ static void startWifi() {
                ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
   WiFi.persistent(false);
   WiFi.mode(WIFI_STA);
+  applyTxPower();  // meteen, vóór scannen/verbinden: daar zitten de grootste stroompieken
   WiFi.setHostname(MDNS_NAME);
   WiFi.disconnect(true);
   delay(100);
@@ -184,7 +203,7 @@ static void startWifi() {
   if (WiFi.status() == WL_CONNECTED) {
     Serial.printf("Wifi OK, IP %s\n", WiFi.localIP().toString().c_str());
     WiFi.setSleep(false);  // radio altijd paraat: snelle uploads
-    WiFi.setTxPower(WIFI_POWER_15dBm);  // iets minder zendvermogen = kleinere stroompieken (signaal is ruim genoeg)
+    applyTxPower();
   } else if (ssid.length()) {
     // Wifi is ingesteld maar lukt (nog) niet: geen instelnetwerk, gewoon blijven proberen (instellen kan via USB).
     Serial.printf("Verbinden met '%s' mislukt: %s (code %d). Opnieuw proberen over 30 s.\n", ssid.c_str(),
@@ -205,9 +224,16 @@ void setup() {
   setCpuFrequencyMhz(160);  // ruim genoeg; koeler en zuiniger dan 240 MHz
   recordBoot();
   delay(200);
+  bool afterBrownout = esp_reset_reason() == ESP_RST_BROWNOUT;
   Serial.printf("\n=== Mijn Woning datalogger %s ===\n", FW_VERSION);
   if (!LittleFS.begin(true)) Serial.println("LittleFS mislukt");
   settingsLoad();
+  // Noodoptie (instelling bod_uit = 1): stroomdip-bewaking uit. Alleen als een betere voeding niet lukt.
+  if (cfgBool("bod_uit")) {
+    WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
+    Serial.println("Let op: stroomdip-bewaking staat uit (bod_uit)");
+  }
+  if (afterBrownout) delay(1500);  // na een stroomdip: voeding even laten herstellen vóór de wifi start
   startWifi();
   configTzTime(TZ_INFO, NTP1, NTP2);
   for (int i = 0; i < 20 && !timeValid(); i++) delay(500);
@@ -216,7 +242,7 @@ void setup() {
   portalBegin();
   esp_task_wdt_init(120, true);  // herstart als iets langer dan 2 minuten blijft hangen
   esp_task_wdt_add(NULL);
-  // Bronnen gespreid laten starten
+  // Bronnen gespreid laten starten (lokaal meteen)
   unsigned long now = millis();
   for (size_t i = 0; i < N_TASKS; i++) tasks[i].last = now - tasks[i].interval + 2000 + i * 3000;
   lastLiveUpload = now - IV_LIVE_UPLOAD + 60000;

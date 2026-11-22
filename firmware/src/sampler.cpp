@@ -19,6 +19,22 @@ static Acc acc[N_CH];
 static float lastV[N_CH];
 static uint32_t lastT[N_CH];
 
+// Vermogens per minuut (net, zon, batterijen, fasen). ~24 KB RAM.
+static int16_t F[N_FAST][MAX_FAST];
+struct AccF {
+  double sum = 0;
+  uint16_t n = 0;
+  float mx = -1e9f;
+};
+static AccF accF[N_FAST];
+static int fastIdx(int ch) {
+  for (int f = 0; f < N_FAST; f++)
+    if (FAST_CH[f] == ch) return f;
+  return -1;
+}
+// Tellers: tijdstip van de laatste geaccepteerde stand en sinds wanneer de teller lager staat (vervangen meter?)
+static uint32_t cT1[9], cLowSince[9];
+
 struct Run {
   uint8_t appl;
   uint16_t start, end;  // minuten na middernacht; end = 0xFFFF zolang hij loopt
@@ -30,6 +46,8 @@ struct Meta {
   uint32_t start = 0;
   uint16_t n = 288;
   int16_t curIdx = -1;
+  uint16_t nF = 1440;
+  int16_t curF = -1;
   // Tellerstanden bij begin (c0) en laatst gezien (c1) van de dag
   double c0[9], c1[9];
   double intChgWh[N_BAT] = {0, 0}, intDisWh[N_BAT] = {0, 0};
@@ -135,6 +153,9 @@ static void saveMeta() {
   d["n"] = M.n;
   d["cur"] = M.curIdx;
   d["nch"] = N_CH;
+  d["nf"] = M.nF;
+  d["curf"] = M.curF;
+  d["nfa"] = N_FAST;
   JsonArray c0 = d["c0"].to<JsonArray>(), c1 = d["c1"].to<JsonArray>();
   for (int k = 0; k < N_K; k++) {
     if (isnan(M.c0[k])) c0.add(nullptr);
@@ -175,13 +196,28 @@ static void appendRow(int idx) {
   f.close();
 }
 
-static void newDay(uint32_t now) {
+static void appendFast(int idx) {
+  File f = LittleFS.open("/today/fast.bin", "a");
+  if (!f) return;
+  uint16_t i = idx;
+  f.write((uint8_t*)&i, 2);
+  for (int k = 0; k < N_FAST; k++) f.write((uint8_t*)&F[k][idx], 2);
+  f.close();
+}
+
+// carry: tellerstanden aan het eind van de vorige dag. Die worden het beginpunt van deze dag,
+// zodat er niets verloren gaat als de ESP rond middernacht even uit stond.
+static void newDay(uint32_t now, const double* carry = nullptr) {
   M = Meta();
   localDate(now, M.date);
   M.start = midnightOf(now);
   uint32_t next = midnightOf(M.start + 26 * 3600);
   M.n = constrain((next - M.start) / STEP_S, 1, MAX_STEPS);
-  for (int k = 0; k < N_K; k++) M.c0[k] = M.c1[k] = NAN;
+  M.nF = constrain((next - M.start) / FAST_STEP_S, 1, MAX_FAST);
+  for (int k = 0; k < N_K; k++) M.c0[k] = M.c1[k] = carry ? carry[k] : NAN;
+  for (int f = 0; f < N_FAST; f++)
+    for (int s = 0; s < MAX_FAST; s++) F[f][s] = MISSING;
+  LittleFS.remove("/today/fast.bin");
   for (int i = 0; i < N_CLIMATE; i++) M.climateKwh[i] = NAN;
   for (int ch = 0; ch < N_CH; ch++)
     for (int s = 0; s < MAX_STEPS; s++) V[ch][s] = MISSING;
@@ -205,6 +241,8 @@ static void restore() {
   M.start = d["start"] | 0;
   M.n = d["n"] | 288;
   M.curIdx = d["cur"] | -1;
+  M.nF = d["nf"] | (uint16_t)(M.n * (STEP_S / FAST_STEP_S));
+  M.curF = d["curf"] | -1;
   for (int k = 0; k < N_K; k++) {
     M.c0[k] = d["c0"][k].is<double>() ? d["c0"][k].as<double>() : NAN;
     M.c1[k] = d["c1"][k].is<double>() ? d["c1"][k].as<double>() : NAN;
@@ -240,11 +278,36 @@ static void restore() {
     }
     rf.close();
   }
-  Serial.printf("[sampler] dag %s hersteld\n", M.date);
+  for (int f = 0; f < N_FAST; f++)
+    for (int s = 0; s < MAX_FAST; s++) F[f][s] = MISSING;
+  File ff = ((d["nfa"] | 0) == N_FAST && LittleFS.exists("/today/fast.bin")) ? LittleFS.open("/today/fast.bin", "r") : File();
+  int nFast = 0;
+  if (ff) {
+    uint16_t idx;
+    int16_t row[N_FAST];
+    while (ff.read((uint8_t*)&idx, 2) == 2 && ff.read((uint8_t*)row, sizeof(row)) == sizeof(row)) {
+      if (idx < MAX_FAST) {
+        for (int f = 0; f < N_FAST; f++) F[f][idx] = row[f];
+        nFast++;
+      }
+    }
+    ff.close();
+  }
+  Serial.printf("[sampler] dag %s hersteld (%d minuten)\n", M.date, nFast);
 }
 
 // ---------- Totalen ----------
 static double integ(int ch, int sign) {
+  int fi = fastIdx(ch);
+  if (fi >= 0) {
+    double wh = 0;
+    for (int s = 0; s < M.nF; s++) {
+      int16_t v = F[fi][s];
+      if (v == MISSING || (sign > 0 && v < 0) || (sign < 0 && v > 0)) continue;
+      wh += fabs((double)v) * FAST_STEP_S / 3600.0;
+    }
+    return wh / 1000.0;
+  }
   double wh = 0;
   for (int s = 0; s < M.n; s++) {
     int16_t v = V[ch][s];
@@ -345,13 +408,54 @@ static void closeBucket() {
   }
   if (acc[CH_GRID_MAX].n) M.peakImport = max(M.peakImport, acc[CH_GRID_MAX].mx);
   if (acc[CH_GRID_W].n && acc[CH_GRID_W].mn < 0) M.peakExport = max(M.peakExport, -acc[CH_GRID_W].mn);
-  for (int k = 0; k < N_K; k++) {
-    double c = counterNow(k);
-    if (!isnan(c)) M.c1[k] = c;
-  }
   appendRow(idx);
   saveMeta();
   for (int ch = 0; ch < N_CH; ch++) acc[ch] = Acc();
+}
+
+static void closeFast() {
+  int idx = M.curF;
+  bool any = false;
+  if (idx >= 0 && idx < M.nF) {
+    for (int f = 0; f < N_FAST; f++) {
+      AccF& a = accF[f];
+      if (!a.n) continue;
+      float v = FAST_CH[f] == CH_GRID_MAX ? a.mx : (float)(a.sum / a.n);
+      F[f][idx] = enc(v, 1);
+      any = true;
+    }
+    if (any) appendFast(idx);
+  }
+  for (int f = 0; f < N_FAST; f++) accF[f] = AccF();
+}
+
+// ---------- Tellers ----------
+// Alleen geloofwaardige standen accepteren: een teller loopt nooit terug en springt niet ineens enorm.
+static void updateCounters(uint32_t now) {
+  for (int k = 0; k < N_K; k++) {
+    double c = counterNow(k);
+    if (isnan(c) || c < 0) continue;
+    if (isnan(M.c0[k])) {
+      M.c0[k] = M.c1[k] = c;
+      cT1[k] = now;
+      continue;
+    }
+    if (c < M.c1[k] - 0.005) {
+      // Lager dan eerder: storing, of echt een nieuwe/gereset meter (pas na 30 min aanhoudend opnieuw beginnen)
+      if (!cLowSince[k]) cLowSince[k] = now;
+      if (now - cLowSince[k] > 1800) {
+        Serial.printf("[sampler] teller %d opnieuw begonnen (%.3f -> %.3f)\n", k, M.c1[k], c);
+        M.c0[k] = M.c1[k] = c;
+        cLowSince[k] = 0;
+      }
+      continue;
+    }
+    cLowSince[k] = 0;
+    double hours = cT1[k] ? (now - cT1[k]) / 3600.0 : 48;
+    if (c - M.c1[k] > 30 + 25 * hours) continue;  // onmogelijke sprong (leesfout)
+    M.c1[k] = c;
+    cT1[k] = now;
+  }
 }
 
 // ---------- Afgesloten dag wegschrijven ----------
@@ -372,6 +476,14 @@ static void finalizeDay() {
     f.write((uint8_t*)&M.n, 2);
     f.write((uint8_t*)&nch, 2);
     for (int ch = 0; ch < N_CH; ch++) f.write((uint8_t*)V[ch], M.n * 2);
+    f.close();
+  }
+  f = LittleFS.open(base + ".fst", "w");
+  if (f) {
+    uint16_t nf = N_FAST;
+    f.write((uint8_t*)&M.nF, 2);
+    f.write((uint8_t*)&nf, 2);
+    for (int k = 0; k < N_FAST; k++) f.write((uint8_t*)F[k], M.nF * 2);
     f.close();
   }
   f = LittleFS.open(base + ".tot", "w");
@@ -415,6 +527,8 @@ void samplerBegin() {
   for (int i = 0; i < N_CLIMATE; i++) M.climateKwh[i] = NAN;
   for (int ch = 0; ch < N_CH; ch++)
     for (int s = 0; s < MAX_STEPS; s++) V[ch][s] = MISSING;
+  for (int f = 0; f < N_FAST; f++)
+    for (int s = 0; s < MAX_FAST; s++) F[f][s] = MISSING;
   restore();
 }
 
@@ -428,6 +542,12 @@ void samplerAdd(int ch, float v) {
       if (wh > 0) M.intChgWh[b] += wh;
       else M.intDisWh[b] -= wh;
     }
+  }
+  int fi = fastIdx(ch);
+  if (fi >= 0) {
+    accF[fi].sum += v;
+    accF[fi].n++;
+    accF[fi].mx = max(accF[fi].mx, v);
   }
   Acc& a = acc[ch];
   a.sum += v;
@@ -469,15 +589,23 @@ void samplerTick() {
   localDate(now, d);
   if (!M.date[0]) newDay(now);
   if (strcmp(d, M.date) != 0) {
+    updateCounters(now);
+    closeFast();
     closeBucket();
     finalizeDay();
-    newDay(now);
+    // Aansluitende dag: eindstand van gisteren = beginstand van vandaag
+    double carry[N_K];
+    bool consecutive = midnightOf(now) - M.start <= 25 * 3600;
+    for (int k = 0; k < N_K; k++) carry[k] = M.c1[k];
+    newDay(now, consecutive ? carry : nullptr);
   }
-  for (int k = 0; k < N_K; k++)
-    if (isnan(M.c0[k])) {
-      double c = counterNow(k);
-      if (!isnan(c)) M.c0[k] = M.c1[k] = c;
-    }
+  updateCounters(now);
+  int fidx = min((int)((now - M.start) / FAST_STEP_S), (int)M.nF - 1);
+  if (M.curF < 0) M.curF = fidx;
+  if (fidx != M.curF) {
+    closeFast();
+    M.curF = fidx;
+  }
   int idx = min((int)((now - M.start) / STEP_S), (int)M.n - 1);
   if (M.curIdx < 0) M.curIdx = idx;
   if (idx != M.curIdx) {
@@ -498,11 +626,44 @@ static void writeHeader(Print& out, const char* date, uint32_t start, uint16_t n
   out.print(",\"ch\":{");
 }
 
+static void writeFastJson(Print& out, uint16_t nF, File* src) {
+  out.print("},\"fast\":{\"step\":");
+  out.print(FAST_STEP_S);
+  out.print(",\"n\":");
+  out.print(nF);
+  out.print(",\"ch\":{");
+  char nb[32];
+  int16_t buf[60];
+  for (int f = 0; f < N_FAST; f++) {
+    if (f) out.print(',');
+    out.print('"');
+    out.print(chName(FAST_CH[f], nb, sizeof(nb)));
+    out.print("\":[");
+    for (int s = 0; s < nF;) {
+      int k = min(60, nF - s);
+      if (src) {
+        if (src->read((uint8_t*)buf, k * 2) != k * 2)
+          for (int j = 0; j < k; j++) buf[j] = MISSING;
+      } else {
+        memcpy(buf, &F[f][s], k * 2);
+      }
+      for (int j = 0; j < k; j++, s++) {
+        if (s) out.print(',');
+        printScaled(out, buf[j], 1);
+      }
+    }
+    out.print(']');
+  }
+}
+
 void writeTodayJson(Print& out) {
   char nb[32];
   writeHeader(out, M.date, M.start, M.n);
+  bool first = true;
   for (int ch = 0; ch < N_CH; ch++) {
-    if (ch) out.print(',');
+    if (fastIdx(ch) >= 0) continue;  // staat per minuut in "fast"
+    if (!first) out.print(',');
+    first = false;
     out.print('"');
     out.print(chName(ch, nb, sizeof(nb)));
     out.print("\":[");
@@ -513,6 +674,7 @@ void writeTodayJson(Print& out) {
     }
     out.print(']');
   }
+  writeFastJson(out, M.nF, nullptr);
   out.print("},\"totals\":");
   JsonDocument t;
   buildTotals(t, false);
@@ -554,10 +716,26 @@ bool writePendingDayJson(const String& date, Print& out) {
   f.read((uint8_t*)&n, 2);
   f.read((uint8_t*)&nch, 2);
   char nb[32];
+  File fst = LittleFS.open("/p/" + date + ".fst", "r");
+  uint16_t fN = 0, fCh = 0;
+  if (fst) {
+    fst.read((uint8_t*)&fN, 2);
+    fst.read((uint8_t*)&fCh, 2);
+    if (fCh != N_FAST || !fN) {
+      fst.close();
+      fst = File();
+    }
+  }
   writeHeader(out, date.c_str(), start, n);
   int16_t buf[48];
+  bool first = true;
   for (int ch = 0; ch < N_CH; ch++) {
-    if (ch) out.print(',');
+    if (fst && fastIdx(ch) >= 0) {  // staat per minuut in "fast": overslaan
+      if (ch < nch) f.seek(f.position() + n * 2);
+      continue;
+    }
+    if (!first) out.print(',');
+    first = false;
     out.print('"');
     out.print(chName(ch, nb, sizeof(nb)));
     out.print("\":[");
@@ -579,6 +757,10 @@ bool writePendingDayJson(const String& date, Print& out) {
     out.print(']');
   }
   f.close();
+  if (fst) {
+    writeFastJson(out, fN, &fst);
+    fst.close();
+  }
   out.print("},\"totals\":");
   File t = LittleFS.open("/p/" + date + ".tot", "r");
   if (t) {
@@ -614,4 +796,5 @@ void writeSummaryJson(int year, Print& out) {
 void pendingDone(const String& date) {
   LittleFS.remove("/p/" + date + ".bin");
   LittleFS.remove("/p/" + date + ".tot");
+  LittleFS.remove("/p/" + date + ".fst");
 }

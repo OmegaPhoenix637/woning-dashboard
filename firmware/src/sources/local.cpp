@@ -15,8 +15,12 @@ void pollP1() {
   if (!ip.length()) return;
   JsonDocument doc;
   String err;
-  int code = httpJson("GET", "http://" + ip + "/api/v1/data", "", doc, nullptr, {}, &err, 5000);
-  if (code != 200) return markErr(S_P1, err);
+  int code = httpJson("GET", "http://" + ip + "/api/v1/data", "", doc, nullptr, {}, &err, 4000);
+  if (code != 200) {
+    // Een enkele mislukte meting: laatste waarde nog even laten staan; daarna niet meer als live tonen.
+    if (nowUnix() - live.health[S_P1].last > STALE_S) live.gridW = live.l1 = live.l2 = live.l3 = NAN;
+    return markErr(S_P1, err);
+  }
   live.gridW = fnum(doc["active_power_w"]);
   live.l1 = fnum(doc["active_power_l1_w"]);
   live.l2 = fnum(doc["active_power_l2_w"]);

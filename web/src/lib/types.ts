@@ -122,11 +122,11 @@ export interface DayTotals {
   runs: ApplianceRun[];
 }
 
-/** Eén dag op 5-minutenresolutie, kolomsgewijs opgeslagen. */
+/** Eén dag, kolomsgewijs. In de site altijd per minuut (zie data/normalize.ts). */
 export interface DayData {
   date: string;
   start: number; // unix s van 00:00 lokale tijd
-  step: number; // seconden per punt (300)
+  step: number; // seconden per punt (60 in de site; de ESP levert 60 voor vermogens en 300 voor de rest)
   n: number; // aantal punten (288, of 276/300 bij zomer-/wintertijd)
   ch: Record<string, (number | null)[]>;
   totals: DayTotals;

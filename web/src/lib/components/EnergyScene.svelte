@@ -105,10 +105,13 @@
   const houseTotal = $derived(houseW + Math.max(0, batW > TH ? batW : 0));
   const solarK = $derived(Math.min(1, Math.max(0, solarW / 6500)));
 
+  // Als de batterijen actief zijn, regelen ze het net naar ~0 W; kleine schommelingen (tientallen watts)
+  // zijn regelruis en geen echte teruglevering/afname. Die tonen we dan niet als stroom.
+  const gridTh = $derived(Math.abs(batW) > TH ? 75 : TH);
   const flows = $derived([
-    { id: 'sun', d: link(L.nodes.sun, H(tall ? 10 : 6, 77)), w: solarW, c: 'solar', rev: false },
-    { id: 'grid', d: link(L.nodes.grid, H(0, 214)), w: gridW, c: 'grid', rev: gridW < 0 },
-    { id: 'bat', d: link(L.nodes.bat, H(210, 118)), w: batW, c: 'battery', rev: batW > 0 },
+    { id: 'sun', d: link(L.nodes.sun, H(tall ? 10 : 6, 77)), w: solarW, c: 'solar', rev: false, th: TH },
+    { id: 'grid', d: link(L.nodes.grid, H(0, 214)), w: gridW, c: 'grid', rev: gridW < 0, th: gridTh },
+    { id: 'bat', d: link(L.nodes.bat, H(210, 118)), w: batW, c: 'battery', rev: batW > 0, th: TH },
   ]);
 
   const motionOk =
@@ -130,7 +133,7 @@
       for (const f of flows) {
         const path = pathEls[f.id];
         if (!path) continue;
-        const active = Math.abs(f.w) >= TH;
+        const active = Math.abs(f.w) >= f.th;
         const len = path.getTotalLength();
         if (motionOk && active) phase[f.id] = ((phase[f.id] ?? 0) + dt / dur(f.w)) % 1;
         for (let k = 0; k < 3; k++) {
@@ -194,7 +197,7 @@
     <!-- lijnen -->
     {#each flows as f (f.id)}
       <path d={f.d} class="line" bind:this={pathEls[f.id]} />
-      {#if Math.abs(f.w) >= TH}<path d={f.d} class="line-on" style="stroke: var(--g-{f.c})" />{/if}
+      {#if Math.abs(f.w) >= f.th}<path d={f.d} class="line-on" style="stroke: var(--g-{f.c})" />{/if}
     {/each}
 
     <!-- huis: rechterhelft van een twee-onder-een-kap (links de buren, met snijlijn) -->
@@ -280,10 +283,10 @@
     </div>
   </div>
 
-  <div class="node" style="{pos(L.nodes.grid)}; --c: var(--g-grid)" class:on={Math.abs(gridW) > TH}>
+  <div class="node" style="{pos(L.nodes.grid)}; --c: var(--g-grid)" class:on={Math.abs(gridW) > gridTh}>
     <div class="orb"><Icon icon={UtilityPole} size={26} stroke={1.75} /></div>
     <div class="cap">
-      <span class="name">{gridW < -TH ? 'Teruglevering' : gridW > TH ? 'Van het net' : 'Net'}</span>
+      <span class="name">{gridW < -gridTh ? 'Teruglevering' : gridW > gridTh ? 'Van het net' : 'Net'}</span>
       <span class="val"><AnimatedNumber value={Math.abs(gridW)} format={(v) => P(v)[0]} /><small>{P(gridW)[1]}</small></span>
     </div>
   </div>

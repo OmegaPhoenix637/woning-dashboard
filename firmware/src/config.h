@@ -3,21 +3,25 @@
 // Wachtwoorden, tokens en IP-adressen staan NIET hier maar in het flashgeheugen (NVS),
 // in te stellen via de instelpagina http://energie.local
 
-#define FW_VERSION "1.0.0"
+#define FW_VERSION "1.1.0"
 
 // Tijd (Europe/Amsterdam) en tijdservers
 #define TZ_INFO "CET-1CEST,M3.5.0,M10.5.0/3"
 #define NTP1 "pool.ntp.org"
 #define NTP2 "time.google.com"
 
-// Opslag van de dag: 5-minutenstappen
+// Opslag van de dag: trage kanalen (temperaturen e.d.) per 5 minuten,
+// vermogens (net, zon, batterij, fasen) per minuut.
 #define STEP_S 300
 #define MAX_STEPS 300  // 288 normaal, 300 bij wintertijdwissel
+#define FAST_STEP_S 60
+#define MAX_FAST 1500  // 1440 normaal, 1500 bij wintertijdwissel
 
 // Hoe vaak elke bron wordt uitgelezen (ms)
-#define IV_P1 10000UL
-#define IV_SMA 30000UL
-#define IV_BAT 30000UL
+// P1, SMA en batterijen worden SAMEN uitgelezen (binnen ~1-2 s), zodat de waarden bij elkaar passen.
+// Anders ontstaan schijnbare stromen, zoals "zon -> net" terwijl de batterij eigenlijk al laadt.
+#define IV_LOCAL 10000UL
+#define STALE_S 45  // waarden ouder dan dit worden niet meer als live getoond
 #define IV_SMA_CLOUD 300000UL  // SMA-cloud: elke 5 min
 #define IV_ONECTA 600000UL     // 144 calls/dag (limiet Daikin: 200)
 #define IV_HC_IDLE 900000UL    // Home Connect zonder lopend programma
@@ -74,3 +78,7 @@ enum ChIdx {
   CH_L3,
   N_CH
 };
+
+// Kanalen die per minuut worden opgeslagen
+#define N_FAST 8
+static const uint8_t FAST_CH[N_FAST] = {CH_GRID_W, CH_GRID_MAX, CH_SOLAR_W, CH_BAT1_W, CH_BAT2_W, CH_L1, CH_L2, CH_L3};

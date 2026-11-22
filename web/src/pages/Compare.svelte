@@ -141,7 +141,8 @@
                 ? (d.ch['grid_' + metric] ?? [])
                 : d.ch.bat1_soc.map((v, i) => (v == null ? null : (v + (d.ch.bat2_soc[i] ?? v)) / 2));
     const n = Math.max(dayA.n, dayB.n);
-    const x = Array.from({ length: n }, (_, i) => (i * 300) / 3600);
+    const st = dayA.step;
+    const x = Array.from({ length: n }, (_, i) => (i * st) / 3600);
     const pad = (a: (number | null)[]) => Array.from({ length: n }, (_, i) => a[i] ?? null);
     return {
       x,

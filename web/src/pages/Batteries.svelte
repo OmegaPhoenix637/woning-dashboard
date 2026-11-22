@@ -50,13 +50,13 @@
 
   const x = $derived(day ? Array.from({ length: day.n }, (_, i) => day!.start + i * day!.step) : []);
 
-  // kWh geladen/ontladen uit een 5-minutenreeks
-  function integ(vals: (number | null)[] | undefined, sign: 1 | -1, from = 0, to = Infinity) {
+  // kWh geladen/ontladen uit een reeks (step = seconden per punt)
+  function integ(vals: (number | null)[] | undefined, sign: 1 | -1, step: number, from = 0, to = Infinity) {
     let wh = 0;
     (vals ?? []).forEach((v, i) => {
       if (v == null || i < from || i >= to) return;
-      if (sign > 0 && v > 0) wh += (v * 300) / 3600;
-      if (sign < 0 && v < 0) wh += (-v * 300) / 3600;
+      if (sign > 0 && v > 0) wh += (v * step) / 3600;
+      if (sign < 0 && v < 0) wh += (-v * step) / 3600;
     });
     return wh / 1000;
   }
@@ -64,7 +64,8 @@
   const todayPer = $derived(
     live.batteries.map((b, i) => {
       const s = app.today?.ch[i === 0 ? 'bat1_w' : 'bat2_w'];
-      return { chg: integ(s, 1), dis: integ(s, -1) };
+      const st = app.today?.step ?? 60;
+      return { chg: integ(s, 1, st), dis: integ(s, -1, st) };
     }),
   );
 
@@ -97,8 +98,8 @@
     for (let h = 0; h < 24; h++) {
       const a = h * perHour;
       const b = a + perHour;
-      chg.push(integ(day.ch.bat1_w, 1, a, b) + integ(day.ch.bat2_w, 1, a, b));
-      dis.push(-(integ(day.ch.bat1_w, -1, a, b) + integ(day.ch.bat2_w, -1, a, b)));
+      chg.push(integ(day.ch.bat1_w, 1, day.step, a, b) + integ(day.ch.bat2_w, 1, day.step, a, b));
+      dis.push(-(integ(day.ch.bat1_w, -1, day.step, a, b) + integ(day.ch.bat2_w, -1, day.step, a, b)));
     }
     return { chg, dis };
   });
