@@ -42,6 +42,8 @@ async function shoot(name, hash, { width, height, scale = 1, theme = 'dark', mob
     [theme, names],
   );
   const page = await ctx.newPage();
+  // Optioneel vast tijdstip, bv. SHOT_TIME=2026-11-24T12:30:00 (demo met zon)
+  if (process.env.SHOT_TIME) await page.clock.setFixedTime(new Date(process.env.SHOT_TIME));
   await page.goto(base + hash);
   await page.waitForSelector('main .page');
   if (action) await action(page);

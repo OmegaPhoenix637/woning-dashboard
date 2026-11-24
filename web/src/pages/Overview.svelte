@@ -142,7 +142,7 @@
             <p>De <b>lichtpuntjes</b> laten zien waar de stroom op dit moment naartoe gaat. Hoe sneller ze bewegen, hoe meer stroom.</p>
             <p><b>Zon → huis:</b> de zonnepanelen leveren stroom. <b>Net:</b> stroom van of naar het elektriciteitsnet (teruglevering gaat van het huis naar het net). <b>Batterijen:</b> laden (stroom gaat erin) of ontladen (stroom gaat naar het huis); de ring om het rondje laat zien hoe vol ze zijn. </p>
             <p>Het getal bij het huis is wat het huis op dit moment opneemt. Laadt de batterij (ook vanaf het net), dan telt dat mee en zie je eronder de verdeling: apparaten + batterij laden. Alles ververst vanzelf elke paar seconden.</p>
-            <p><b>Per fase:</b> het huis heeft drie fasen (L1, L2, L3). Een balk naar rechts is stroom van het net, naar links (gestreept, met een min) is teruglevering. Dat een fase <b>negatief</b> is terwijl een andere positief is, is normaal: de omvormers en de batterijen zitten elk op één fase, het verbruik is over alle drie verdeeld. De meter telt de drie fasen bij elkaar op; alleen dat totaal (bij Net) is wat je betaalt of terugkrijgt.</p>
+            <p><b>Per fase:</b> het huis heeft drie fasen (L1, L2, L3). De balk laat zien hoeveel stroom er over die fase gaat. Staat er <b>terug</b> achter, dan levert die fase op dat moment stroom terug aan het net. Dat een fase <b>negatief</b> is terwijl een andere positief is, is normaal: de omvormers en de batterijen zitten elk op één fase, het verbruik is over alle drie verdeeld. De meter telt de drie fasen bij elkaar op; alleen dat totaal (bij Net) is wat je betaalt of terugkrijgt.</p>
           </Explain>
         </div>
       </div>

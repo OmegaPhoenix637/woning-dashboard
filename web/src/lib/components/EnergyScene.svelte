@@ -315,13 +315,15 @@
 
   {#if phases && phases.some((p) => p != null)}
     <div class="phases" style={pos(L.phases)}>
-      <span class="ph-title">Per fase <small>← terug · van net →</small></span>
+      <span class="ph-title">Per fase</span>
       {#each phases as p, i (i)}
         {@const v = p ?? 0}
-        <div class="ph-row" style="--c: var(--c-l{i + 1})">
+        {@const back = v < -TH}
+        <div class="ph-row" style="--c: var(--c-l{i + 1})" title={back ? 'Deze fase levert terug aan het net' : 'Deze fase neemt stroom van het net'}>
           <span class="ph-name"><i></i>L{i + 1}</span>
-          <span class="ph-bar" title={v < 0 ? 'levert terug aan het net' : 'neemt af van het net'}><span style="width:{Math.min(50, (Math.abs(v) / 5750) * 50)}%" class:back={v < 0}></span></span>
-          <span class="ph-val" class:back={v < 0}>{#if p == null}—{:else}{v < 0 ? '−' : ''}<AnimatedNumber value={Math.abs(v)} format={(x) => P(x)[0]} /><small>{P(v)[1]}</small>{/if}</span>
+          <span class="ph-bar"><span style="width:{p == null || Math.abs(v) < TH ? 0 : Math.max(3, Math.min(100, (Math.abs(v) / 5750) * 100))}%"></span></span>
+          <span class="ph-val">{#if p == null}—{:else}<AnimatedNumber value={Math.abs(v)} format={(x) => P(x)[0]} /><small>{P(v)[1]}</small>{/if}</span>
+          <span class="ph-dir">{#if back}<em>terug</em>{/if}</span>
         </div>
       {/each}
     </div>
@@ -577,38 +579,43 @@
       transform: rotate(360deg);
     }
   }
+  /* Fasen: één raster, zodat balken en getallen van alle drie de fasen netjes onder elkaar staan */
   .phases {
     position: absolute;
     transform: translate(-50%, -50%);
-    width: clamp(190px, 25cqw, 290px);
+    width: clamp(200px, 26cqw, 300px);
     display: grid;
-    gap: 9px;
+    grid-template-columns: auto 1fr auto auto;
+    align-items: center;
+    column-gap: 10px;
+    row-gap: 10px;
     padding: 14px 16px;
-    border-radius: 16px;
-    background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+    border-radius: 18px;
+    background: color-mix(in srgb, var(--surface-2) 72%, transparent);
     border: 1px solid var(--border);
+    backdrop-filter: blur(8px);
   }
   .tall .phases {
-    width: 48cqw;
-    gap: 7px;
+    width: 52cqw;
+    row-gap: 8px;
+    column-gap: 7px;
     padding: 10px 12px;
   }
   .ph-title {
+    grid-column: 1 / -1;
     font-size: clamp(12px, 1.5cqw, 15px);
     font-weight: 600;
     color: var(--text-2);
+    margin-bottom: -2px;
   }
   .ph-row {
-    display: grid;
-    grid-template-columns: auto 1fr auto;
-    align-items: center;
-    gap: 8px;
+    display: contents;
   }
   .ph-name {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    font-size: clamp(12.5px, 1.6cqw, 16px);
+    gap: 6px;
+    font-size: clamp(12.5px, 1.6cqw, 15px);
     font-weight: 650;
     color: var(--text-2);
   }
@@ -617,63 +624,48 @@
     height: 8px;
     border-radius: 50%;
     background: var(--c);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--c) 60%, transparent);
   }
-  /* Balk vanuit het midden: rechts = afname van het net, links = teruglevering */
   .ph-bar {
-    position: relative;
-    height: 7px;
-    min-width: 24px;
+    height: 6px;
+    min-width: 28px;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--c) 14%, transparent);
+    background: color-mix(in srgb, var(--text) 9%, transparent);
     overflow: hidden;
   }
-  .ph-bar::after {
-    content: '';
-    position: absolute;
-    left: 50%;
-    top: -2px;
-    bottom: -2px;
-    width: 1.5px;
-    margin-left: -0.75px;
-    background: var(--text-3);
-  }
   .ph-bar span {
-    position: absolute;
-    left: 50%;
-    top: 0;
+    display: block;
     height: 100%;
     border-radius: 999px;
-    background: var(--c);
+    background: linear-gradient(90deg, color-mix(in srgb, var(--c) 70%, transparent), var(--c));
     transition: width 0.8s var(--ease-out);
   }
-  .ph-bar span.back {
-    left: auto;
-    right: 50%;
-    background: repeating-linear-gradient(-45deg, var(--c) 0 3px, color-mix(in srgb, var(--c) 55%, transparent) 3px 6px);
-  }
-  .ph-val.back {
-    color: var(--text-2);
-  }
-  .ph-title small {
-    font-weight: 500;
-    font-size: 0.8em;
-    color: var(--text-3);
-    margin-left: 4px;
-    white-space: nowrap;
-  }
   .ph-val {
-    font-size: clamp(13.5px, 1.9cqw, 19px);
+    font-size: clamp(13.5px, 1.9cqw, 18px);
     font-weight: 700;
     font-variant-numeric: tabular-nums;
-    min-width: 54px;
     text-align: right;
     white-space: nowrap;
   }
   .ph-val small {
-    font-size: 0.75em;
+    font-size: 0.72em;
     color: var(--text-2);
     margin-left: 2px;
     font-weight: 600;
+  }
+  .ph-dir {
+    display: flex;
+    justify-content: flex-start;
+  }
+  .ph-dir em {
+    font-style: normal;
+    font-size: clamp(11px, 1.35cqw, 12.5px);
+    font-weight: 650;
+    line-height: 1;
+    padding: 4px 8px;
+    border-radius: 999px;
+    color: var(--c);
+    background: color-mix(in srgb, var(--c) 15%, transparent);
   }
   .split {
     display: inline-flex;
@@ -716,13 +708,13 @@
     font-size: 11px;
   }
   .short .phases {
-    width: clamp(150px, 26cqw, 220px);
+    width: clamp(170px, 27cqw, 240px);
     padding: 8px 10px;
-    gap: 5px;
+    row-gap: 6px;
+    column-gap: 7px;
   }
   .short .ph-val {
     font-size: 13px;
-    min-width: 46px;
   }
   .short .ph-title {
     font-size: 11px;
