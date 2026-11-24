@@ -1,4 +1,4 @@
-import type { DayData } from '../types';
+import type { DayData, DayTotals } from '../types';
 
 /**
  * Dagbestanden van de ESP bevatten trage kanalen (temperaturen e.d.) per 5 minuten in `ch`
@@ -51,6 +51,32 @@ export function fillGaps(a: (number | null)[], maxPoints: number): (number | nul
   return out;
 }
 
+function integKwh(a: (number | null)[] | undefined, sign: 1 | -1, step: number): number {
+  let wh = 0;
+  for (const v of a ?? []) if (v != null && v * sign > 0) wh += (Math.abs(v) * step) / 3600;
+  return wh / 1000;
+}
+
+/**
+ * Dagtotalen komen uit de tellerstanden (exact). Is een tellertotaal duidelijk LAGER dan wat er volgens
+ * de metingen minimaal doorheen is gegaan, dan klopt de tellerstand niet (bv. een foute beginstand) en
+ * nemen we het gemeten totaal. Gemeten kan alleen te laag zijn (gaten), nooit te hoog, dus dit is veilig.
+ */
+export function repairTotals(t: DayTotals | null | undefined, ch: Record<string, (number | null)[]>, step: number): DayTotals | null {
+  if (!t) return t ?? null;
+  const fix = (v: number | null | undefined, measured: number) =>
+    measured > 0.3 && (v == null || v < measured * 0.9 - 0.3) ? Math.round(measured * 1000) / 1000 : (v ?? 0);
+  const both = (sign: 1 | -1) => integKwh(ch.bat1_w, sign, step) + integKwh(ch.bat2_w, sign, step);
+  return {
+    ...t,
+    importKwh: fix(t.importKwh, integKwh(ch.grid_w, 1, step)),
+    exportKwh: fix(t.exportKwh, integKwh(ch.grid_w, -1, step)),
+    solarKwh: fix(t.solarKwh, integKwh(ch.solar_w, 1, step)),
+    batChargeKwh: fix(t.batChargeKwh, both(1)),
+    batDischargeKwh: fix(t.batDischargeKwh, both(-1)),
+  };
+}
+
 export function normalizeDay<T extends DayData | null>(d: T): T {
   if (!d) return d;
   const raw = d as RawDay;
@@ -70,6 +96,7 @@ export function normalizeDay<T extends DayData | null>(d: T): T {
   }
   const maxPts = Math.floor(MAX_GAP_S / BASE_STEP);
   for (const name of Object.keys(ch)) if (isContinuous(name)) ch[name] = fillGaps(ch[name], maxPts);
-  const out = { date: raw.date, start: raw.start, step: BASE_STEP, n, ch, totals: raw.totals, _norm: true };
+  const totals = repairTotals(raw.totals, ch, BASE_STEP);
+  const out = { date: raw.date, start: raw.start, step: BASE_STEP, n, ch, totals, _norm: true };
   return out as unknown as T;
 }

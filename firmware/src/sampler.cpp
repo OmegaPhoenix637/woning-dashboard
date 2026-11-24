@@ -33,6 +33,7 @@ static int fastIdx(int ch) {
   return -1;
 }
 static int16_t fastOrSlow(int f, int s);
+static void healCounters();
 // Tellers: tijdstip van de laatste geaccepteerde stand en sinds wanneer de teller lager staat (vervangen meter?)
 static uint32_t cT1[9], cLowSince[9];
 
@@ -49,6 +50,7 @@ struct Meta {
   int16_t curIdx = -1;
   uint16_t nF = 1440;
   int16_t curF = -1;
+  uint32_t tC = 0;  // tijdstip van de laatste geaccepteerde tellerstand
   // Tellerstanden bij begin (c0) en laatst gezien (c1) van de dag
   double c0[9], c1[9];
   double intChgWh[N_BAT] = {0, 0}, intDisWh[N_BAT] = {0, 0};
@@ -157,6 +159,7 @@ static void saveMeta() {
   d["nf"] = M.nF;
   d["curf"] = M.curF;
   d["nfa"] = N_FAST;
+  d["tc"] = M.tC;
   JsonArray c0 = d["c0"].to<JsonArray>(), c1 = d["c1"].to<JsonArray>();
   for (int k = 0; k < N_K; k++) {
     if (isnan(M.c0[k])) c0.add(nullptr);
@@ -244,6 +247,7 @@ static void restore() {
   M.curIdx = d["cur"] | -1;
   M.nF = d["nf"] | (uint16_t)(M.n * (STEP_S / FAST_STEP_S));
   M.curF = d["curf"] | -1;
+  M.tC = d["tc"] | 0;
   for (int k = 0; k < N_K; k++) {
     M.c0[k] = d["c0"][k].is<double>() ? d["c0"][k].as<double>() : NAN;
     M.c1[k] = d["c1"][k].is<double>() ? d["c1"][k].as<double>() : NAN;
@@ -327,10 +331,13 @@ static double r3(double v) { return round(v * 1000.0) / 1000.0; }
 
 static void buildTotals(JsonDocument& t, bool final) {
   t["date"] = M.date;
-  double imp = diffK(K_IMP), exp = diffK(K_EXP), sol = diffK(K_SOLAR);
-  if (isnan(imp)) imp = integ(CH_GRID_W, 1);
-  if (isnan(exp)) exp = integ(CH_GRID_W, -1);
-  if (isnan(sol)) sol = integ(CH_SOLAR_W, 1);
+  // Teller (exact), behalve als die ontbreekt of duidelijk lager is dan gemeten
+  auto pick = [](double counter, double measured) {
+    return (isnan(counter) || (measured > 0.3 && counter < measured * 0.9 - 0.3)) ? measured : counter;
+  };
+  double imp = pick(diffK(K_IMP), integ(CH_GRID_W, 1));
+  double exp = pick(diffK(K_EXP), integ(CH_GRID_W, -1));
+  double sol = pick(diffK(K_SOLAR), integ(CH_SOLAR_W, 1));
   double chg = 0, dis = 0;
   for (int b = 0; b < N_BAT; b++) {
     double c = diffK(b == 0 ? K_CHG1 : K_CHG2), d = diffK(b == 0 ? K_DIS1 : K_DIS2);
@@ -410,6 +417,7 @@ static void closeBucket() {
   if (acc[CH_GRID_MAX].n) M.peakImport = max(M.peakImport, acc[CH_GRID_MAX].mx);
   if (acc[CH_GRID_W].n && acc[CH_GRID_W].mn < 0) M.peakExport = max(M.peakExport, -acc[CH_GRID_W].mn);
   appendRow(idx);
+  healCounters();
   saveMeta();
   for (int ch = 0; ch < N_CH; ch++) acc[ch] = Acc();
 }
@@ -432,30 +440,66 @@ static void closeFast() {
 
 // ---------- Tellers ----------
 // Alleen geloofwaardige standen accepteren: een teller loopt nooit terug en springt niet ineens enorm.
+static char counterNote[96] = "";
+const char* samplerCounterNote() { return counterNote; }
+static const char* const K_NAMES[N_K] = {"import", "export", "zon", "gas", "laden1", "laden2", "ontladen1", "ontladen2"};
+
+// Regels (een dagtotaal mag nooit verloren gaan):
+//  - een stand die meer stijgt dan fysiek kan (> 20 kW sinds de vorige stand) is een leesfout: negeren
+//  - een stand die LAGER is dan eerder is een storing: negeren. Blijft hij 2 uur lager (nieuwe meter),
+//    dan verder tellen vanaf de nieuwe stand, met behoud van wat er vandaag al geteld was.
 static void updateCounters(uint32_t now) {
   for (int k = 0; k < N_K; k++) {
     double c = counterNow(k);
     if (isnan(c) || c < 0) continue;
-    if (isnan(M.c0[k])) {
+    if (isnan(M.c0[k]) || isnan(M.c1[k])) {
       M.c0[k] = M.c1[k] = c;
-      cT1[k] = now;
+      cT1[k] = M.tC = now;
       continue;
     }
     if (c < M.c1[k] - 0.005) {
-      // Lager dan eerder: storing, of echt een nieuwe/gereset meter (pas na 30 min aanhoudend opnieuw beginnen)
       if (!cLowSince[k]) cLowSince[k] = now;
-      if (now - cLowSince[k] > 1800) {
-        Serial.printf("[sampler] teller %d opnieuw begonnen (%.3f -> %.3f)\n", k, M.c1[k], c);
-        M.c0[k] = M.c1[k] = c;
+      if (now - cLowSince[k] > 7200) {
+        double done = M.c1[k] - M.c0[k];
+        snprintf(counterNote, sizeof(counterNote), "%s: meter lijkt vervangen (%.2f -> %.2f), doorgeteld", K_NAMES[k], M.c1[k], c);
+        Serial.printf("[sampler] %s\n", counterNote);
+        M.c1[k] = c;
+        M.c0[k] = c - done;
         cLowSince[k] = 0;
+        cT1[k] = M.tC = now;
       }
       continue;
     }
     cLowSince[k] = 0;
-    double hours = cT1[k] ? (now - cT1[k]) / 3600.0 : 48;
-    if (c - M.c1[k] > 30 + 25 * hours) continue;  // onmogelijke sprong (leesfout)
+    uint32_t since = cT1[k] ? cT1[k] : M.tC;
+    double hours = since && now > since ? (now - since) / 3600.0 : 48;
+    if (c - M.c1[k] > 0.1 + 20.0 * hours) {
+      snprintf(counterNote, sizeof(counterNote), "%s: onmogelijke sprong genegeerd (%.2f -> %.2f)", K_NAMES[k], M.c1[k], c);
+      Serial.printf("[sampler] %s\n", counterNote);
+      continue;
+    }
     M.c1[k] = c;
-    cT1[k] = now;
+    cT1[k] = M.tC = now;
+  }
+}
+
+// Zelfherstel: een tellertotaal kan nooit lager zijn dan wat er volgens de metingen minimaal doorheen ging
+// (de metingen missen hooguit iets door gaten). Is dat wel zo, dan klopt de beginstand niet: die corrigeren.
+static void healCounters() {
+  struct Map {
+    int k, ch, sign;
+  };
+  static const Map maps[] = {{K_IMP, CH_GRID_W, 1},   {K_EXP, CH_GRID_W, -1},  {K_SOLAR, CH_SOLAR_W, 1}, {K_CHG1, CH_BAT1_W, 1},
+                             {K_CHG2, CH_BAT2_W, 1}, {K_DIS1, CH_BAT1_W, -1}, {K_DIS2, CH_BAT2_W, -1}};
+  for (const Map& m : maps) {
+    if (isnan(M.c0[m.k]) || isnan(M.c1[m.k])) continue;
+    double counted = M.c1[m.k] - M.c0[m.k];
+    double measured = integ(m.ch, m.sign);
+    if (measured > 0.3 && counted < measured * 0.9 - 0.3) {
+      snprintf(counterNote, sizeof(counterNote), "%s: beginstand hersteld (%.2f -> %.2f kWh vandaag)", K_NAMES[m.k], counted, measured);
+      Serial.printf("[sampler] %s\n", counterNote);
+      M.c0[m.k] = M.c1[m.k] - measured;
+    }
   }
 }
 

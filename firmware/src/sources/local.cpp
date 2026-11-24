@@ -8,6 +8,7 @@
 #include "sources.h"
 
 static inline float fnum(JsonVariantConst v) { return v.is<float>() ? v.as<float>() : NAN; }
+static inline double dnum(JsonVariantConst v) { return v.is<double>() ? v.as<double>() : NAN; }
 
 // ---------------- HomeWizard P1 (lokale API v1) ----------------
 void pollP1() {
@@ -26,9 +27,9 @@ void pollP1() {
   live.l2 = fnum(doc["active_power_l2_w"]);
   live.l3 = fnum(doc["active_power_l3_w"]);
   live.voltage = fnum(doc["active_voltage_l1_v"]);
-  live.importKwh = doc["total_power_import_kwh"] | NAN;
-  live.exportKwh = doc["total_power_export_kwh"] | NAN;
-  live.gasM3 = doc["total_gas_m3"] | NAN;
+  live.importKwh = dnum(doc["total_power_import_kwh"]);
+  live.exportKwh = dnum(doc["total_power_export_kwh"]);
+  live.gasM3 = dnum(doc["total_gas_m3"]);
   samplerAdd(CH_GRID_W, live.gridW);
   samplerAdd(CH_GRID_MAX, live.gridW);
   samplerAdd(CH_L1, live.l1);

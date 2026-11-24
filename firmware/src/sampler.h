@@ -22,3 +22,4 @@ bool writePendingDayJson(const String& date, Print& out);
 void writeSummaryJson(int year, Print& out);
 void pendingDone(const String& date);
 String todayDate();
+const char* samplerCounterNote();  // laatste melding over de tellerstanden (voor de systeemstatus)

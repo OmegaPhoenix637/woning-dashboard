@@ -4,6 +4,7 @@
 import type { DayData, LiveData, Settings, YearSummary } from '../types';
 import { DEFAULT_SETTINGS } from '../calc/tariff';
 import { todayIso } from '../date';
+import { normalizeDay } from './normalize';
 import type { DataSource } from './source';
 
 export interface GithubConfig {
@@ -113,7 +114,7 @@ export class GithubSource implements DataSource {
     try {
       const today = await this.today();
       const days = s.days.filter((d) => d.date !== today.date);
-      days.push(today.totals);
+      days.push(normalizeDay(today).totals);
       days.sort((a, b) => a.date.localeCompare(b.date));
       return { year: s.year, days };
     } catch {

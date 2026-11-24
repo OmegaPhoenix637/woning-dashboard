@@ -3,7 +3,7 @@
 // Wachtwoorden, tokens en IP-adressen staan NIET hier maar in het flashgeheugen (NVS),
 // in te stellen via de instelpagina http://energie.local
 
-#define FW_VERSION "1.1.0"
+#define FW_VERSION "1.1.1"
 
 // Tijd (Europe/Amsterdam) en tijdservers
 #define TZ_INFO "CET-1CEST,M3.5.0,M10.5.0/3"

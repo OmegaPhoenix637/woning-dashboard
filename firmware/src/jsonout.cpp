@@ -135,5 +135,6 @@ void writeLiveJson(Print& out) {
   h["lastReset"] = g_lastReset;
   h["resets"] = serialized(g_resetHist);
   h["pending"] = pendingCount();
+  if (samplerCounterNote()[0]) h["counters"] = samplerCounterNote();
   serializeJson(d, out);
 }

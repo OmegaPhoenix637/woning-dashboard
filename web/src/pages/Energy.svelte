@@ -221,6 +221,7 @@
         <Explain>
           <p>Het huis is aangesloten op <b>drie fasen</b> (L1, L2, L3). Hier zie je per fase hoeveel stroom er van het net kwam (boven de nullijn) of werd teruggeleverd (eronder).</p>
           <p>Handig om te zien of één fase zwaar belast wordt. Bij een aansluiting van 3×25 A is dat ongeveer <b>5,7 kW per fase</b>.</p>
+          <p>Een fase onder de nullijn terwijl een andere erboven zit is normaal: zonnepanelen en batterijen leveren elk op één fase, het verbruik is verdeeld. De meter telt alle fasen bij elkaar op (saldering per aansluiting).</p>
         </Explain>
       </div>
       {#if phaseChart}

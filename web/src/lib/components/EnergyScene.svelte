@@ -315,13 +315,13 @@
 
   {#if phases && phases.some((p) => p != null)}
     <div class="phases" style={pos(L.phases)}>
-      <span class="ph-title">Per fase</span>
+      <span class="ph-title">Per fase <small>← terug · van net →</small></span>
       {#each phases as p, i (i)}
         {@const v = p ?? 0}
         <div class="ph-row" style="--c: var(--c-l{i + 1})">
           <span class="ph-name"><i></i>L{i + 1}</span>
-          <span class="ph-bar"><span style="width:{Math.min(100, (Math.abs(v) / 5750) * 100)}%" class:back={v < 0}></span></span>
-          <span class="ph-val">{#if p == null}—{:else}{v < 0 ? '−' : ''}<AnimatedNumber value={Math.abs(v)} format={(x) => P(x)[0]} /><small>{P(v)[1]}</small>{/if}</span>
+          <span class="ph-bar" title={v < 0 ? 'levert terug aan het net' : 'neemt af van het net'}><span style="width:{Math.min(50, (Math.abs(v) / 5750) * 50)}%" class:back={v < 0}></span></span>
+          <span class="ph-val" class:back={v < 0}>{#if p == null}—{:else}{v < 0 ? '−' : ''}<AnimatedNumber value={Math.abs(v)} format={(x) => P(x)[0]} /><small>{P(v)[1]}</small>{/if}</span>
         </div>
       {/each}
     </div>
@@ -618,22 +618,48 @@
     border-radius: 50%;
     background: var(--c);
   }
+  /* Balk vanuit het midden: rechts = afname van het net, links = teruglevering */
   .ph-bar {
+    position: relative;
     height: 7px;
     min-width: 24px;
     border-radius: 999px;
     background: color-mix(in srgb, var(--c) 14%, transparent);
     overflow: hidden;
   }
+  .ph-bar::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: -2px;
+    bottom: -2px;
+    width: 1.5px;
+    margin-left: -0.75px;
+    background: var(--text-3);
+  }
   .ph-bar span {
-    display: block;
+    position: absolute;
+    left: 50%;
+    top: 0;
     height: 100%;
     border-radius: 999px;
     background: var(--c);
     transition: width 0.8s var(--ease-out);
   }
   .ph-bar span.back {
-    opacity: 0.45;
+    left: auto;
+    right: 50%;
+    background: repeating-linear-gradient(-45deg, var(--c) 0 3px, color-mix(in srgb, var(--c) 55%, transparent) 3px 6px);
+  }
+  .ph-val.back {
+    color: var(--text-2);
+  }
+  .ph-title small {
+    font-weight: 500;
+    font-size: 0.8em;
+    color: var(--text-3);
+    margin-left: 4px;
+    white-space: nowrap;
   }
   .ph-val {
     font-size: clamp(13.5px, 1.9cqw, 19px);

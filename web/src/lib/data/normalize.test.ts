@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fillGaps, normalizeDay, type RawDay } from './normalize';
+import { fillGaps, normalizeDay, repairTotals, type RawDay } from './normalize';
 import type { DayTotals } from '../types';
 
 const totals = {} as DayTotals;
@@ -37,5 +37,20 @@ describe('normalizeDay', () => {
     const a = [1, ...new Array(11).fill(null), 13];
     expect(fillGaps(a, 10)).toEqual(a);
     expect(fillGaps([1, null, 3], 10)).toEqual([1, 2, 3]);
+  });
+});
+
+describe('repairTotals', () => {
+  const base = { importKwh: 0.211, exportKwh: 0.121, solarKwh: 11.09, batChargeKwh: 2.02, batDischargeKwh: 1.37 } as DayTotals;
+  it('vervangt een te laag tellertotaal door het gemeten totaal (24-11: 0,2 kWh i.p.v. ~15)', () => {
+    const grid = new Array(600).fill(1500); // 10 uur x 1,5 kW = 15 kWh
+    const t = repairTotals(base, { grid_w: grid }, 60)!;
+    expect(t.importKwh).toBe(15);
+    expect(t.exportKwh).toBe(0.121); // niets gemeten: teller laten staan
+    expect(t.solarKwh).toBe(11.09);
+  });
+  it('laat een kloppend (hoger) tellertotaal staan: gaten in de grafiek maken het nooit lager', () => {
+    const t = repairTotals({ ...base, importKwh: 20 }, { grid_w: new Array(600).fill(1500) }, 60)!;
+    expect(t.importKwh).toBe(20);
   });
 });
